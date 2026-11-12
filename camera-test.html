@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>摄像头检测</title>
+<style>
+  body { background:#111; color:#fff; font-family:sans-serif; text-align:center; padding:50px; }
+  video { border:2px solid #555; border-radius:10px; margin-top:20px; }
+  .ok { color:#4ade80; } .fail { color:#f87171; } .info { color:#a5b4fc; }
+</style></head><body>
+<h1>摄像头检测</h1>
+<p id="msg" class="info">正在请求摄像头权限...</p>
+<video id="cam" autoplay playsinline style="width:320px;height:240px;"></video>
+<script>
+navigator.mediaDevices.getUserMedia({video:true})
+.then(stream=>{
+  document.getElementById('cam').srcObject=stream;
+  document.getElementById('msg').innerHTML='<span class="ok">✅ 摄像头正常！</span> 画面已显示在上方。';
+})
+.catch(err=>{
+  document.getElementById('msg').innerHTML='<span class="fail">❌ 摄像头不可用</span><br>错误: '+err.message;
+});
+</script>
+</body></html>

@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔮 AI 深度解读 - 塔罗之主</title>
+    <style>
+        :root {
+            --void-black: #000001;
+            --brass-gold: #FFD26A;
+            --brass-gold-dark: #D4A843;
+            --brass-light: #FFF8E7;
+            --brass-gold-light: #F0D68A;
+            --hyper-blue: #38BDF8;
+            --mystic-purple: #7C3AED;
+            --mystic-purple2: #A78BFA;
+            --cyan-accent: #20D0C0;
+            --text-gold: #E8D5A3;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body, html {
+            width: 100%; min-height: 100vh; background: var(--void-black);
+            font-family: "Georgia", serif, system-ui; color: #e2e8f0;
+            overflow-x: hidden;
+        }
+
+        /* ===== 背景星空 ===== */
+        .starfield { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+
+        /* ===== 主容器 ===== */
+        .reading-container {
+            position: relative; z-index: 1; max-width: 900px; margin: 0 auto;
+            padding: 2rem 1.5rem 4rem; min-height: 100vh;
+        }
+
+        /* ===== 页头 ===== */
+        .page-header { text-align: center; margin-bottom: 2.5rem; }
+        .page-title {
+            font-size: 2.2rem; color: var(--brass-light); font-weight: 400;
+            letter-spacing: 8px;
+            text-shadow: 0 0 40px rgba(255,248,231,0.4), 0 0 80px rgba(56,189,248,0.2);
+        }
+        .page-subtitle {
+            font-size: 0.75rem; font-family: monospace; letter-spacing: 8px;
+            color: var(--hyper-blue); text-transform: uppercase; margin-top: 0.5rem;
+            text-shadow: 0 0 15px rgba(56,189,248,0.4);
+        }
+        .divider {
+            width: 200px; height: 1px; margin: 1.5rem auto;
+            background: linear-gradient(90deg, transparent, var(--brass-gold-dark), transparent);
+        }
+
+        /* ===== 问题展示 ===== */
+        .question-box {
+            text-align: center; margin-bottom: 2rem; padding: 1.2rem 2rem;
+            background: rgba(30,15,60,0.35); backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(214,168,67,0.15); border-radius: 14px;
+        }
+        .question-label {
+            font-size: 0.7rem; font-family: monospace; color: var(--cyan-accent);
+            letter-spacing: 4px; text-transform: uppercase; margin-bottom: 0.5rem;
+        }
+        .question-text {
+            font-size: 1.15rem; color: var(--brass-light); font-style: italic;
+            line-height: 1.6;
+        }
+
+        /* ===== 卡牌展示区 ===== */
+        .cards-section { margin-bottom: 2.5rem; }
+        .cards-section-title {
+            font-size: 0.75rem; font-family: monospace; color: var(--text-gold);
+            letter-spacing: 3px; text-align: center; margin-bottom: 1.2rem; opacity: 0.7;
+        }
+        .cards-row {
+            display: flex; justify-content: center; gap: 1.8rem; flex-wrap: wrap;
+        }
+        .card-display {
+            text-align: center; transition: transform 0.3s;
+        }
+        .card-display:hover { transform: translateY(-8px); }
+        .card-img-wrap {
+            width: 140px; height: 224px; border-radius: 10px; overflow: hidden;
+            border: 2px solid rgba(240,214,138,0.35); position: relative;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.6), 0 0 20px rgba(212,168,67,0.1);
+            margin-bottom: 0.8rem;
+        }
+        .card-img-wrap img {
+            width: 100%; height: 100%; object-fit: cover; display: block;
+        }
+        .card-img-wrap.reversed img { transform: rotate(180deg); }
+        .card-position {
+            font-size: 0.7rem; font-family: monospace; color: var(--cyan-accent);
+            letter-spacing: 2px; margin-bottom: 0.3rem;
+        }
+        .card-name {
+            font-size: 0.95rem; color: var(--brass-gold-light);
+            font-family: "Georgia", serif; margin-bottom: 0.2rem;
+        }
+        .card-orientation {
+            font-size: 0.7rem; padding: 2px 10px; border-radius: 12px;
+            display: inline-block; font-family: monospace; letter-spacing: 1px;
+        }
+        .card-orientation.up {
+            color: var(--brass-gold-light); border: 1px solid rgba(240,214,138,0.3);
+            background: rgba(240,214,138,0.08);
+        }
+        .card-orientation.rv {
+            color: var(--mystic-purple2); border: 1px solid rgba(167,139,250,0.3);
+            background: rgba(167,139,250,0.08);
+        }
+
+        /* ===== AI 解读区 ===== */
+        .reading-section {
+            background: rgba(30,15,60,0.35); backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(214,168,67,0.15); border-radius: 16px;
+            padding: 2rem 2.2rem; position: relative;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+        .reading-section::before, .reading-section::after {
+            content: ''; position: absolute; width: 14px; height: 14px;
+            border: 2px solid var(--brass-gold-dark); pointer-events: none;
+        }
+        .reading-section::before { top: 8px; left: 8px; border-right: none; border-bottom: none; }
+        .reading-section::after { bottom: 8px; right: 8px; border-left: none; border-top: none; }
+
+        .reading-label {
+            font-size: 0.75rem; font-family: monospace; color: var(--cyan-accent);
+            letter-spacing: 4px; text-transform: uppercase; margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        /* Loading 状态 */
+        .loading-state { text-align: center; padding: 3rem 1rem; }
+        .loading-orb {
+            width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 1.5rem;
+            background: radial-gradient(circle at 35% 35%, var(--brass-gold-light), var(--brass-gold-dark), var(--mystic-purple));
+            box-shadow: 0 0 40px rgba(240,214,138,0.4), 0 0 80px rgba(139,92,246,0.2);
+            animation: orbPulse 2s ease-in-out infinite, orbSpin 4s linear infinite;
+        }
+        @keyframes orbPulse {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.15); opacity: 1; }
+        }
+        @keyframes orbSpin {
+            from { filter: hue-rotate(0deg); }
+            to { filter: hue-rotate(360deg); }
+        }
+        .loading-text {
+            color: var(--text-gold); font-size: 1rem; letter-spacing: 3px;
+            animation: textFade 2s ease-in-out infinite;
+        }
+        @keyframes textFade {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        /* 解读结果 */
+        .reading-content {
+            color: #e2e8f0; font-size: 0.95rem; line-height: 2;
+            letter-spacing: 0.5px; text-align: justify;
+            word-break: break-word;
+        }
+        .reading-content h1, .reading-content h2, .reading-content h3,
+        .reading-content h4, .reading-content h5, .reading-content h6 {
+            color: var(--brass-gold-light); font-family: "Georgia", serif;
+            margin: 1.5em 0 0.5em; line-height: 1.4;
+        }
+        .reading-content h1 { font-size: 1.5rem; }
+        .reading-content h2 { font-size: 1.3rem; }
+        .reading-content h3 { font-size: 1.15rem; }
+        .reading-content h4, .reading-content h5, .reading-content h6 { font-size: 1rem; }
+        .reading-content strong, .reading-content b {
+            color: var(--brass-gold-light); font-weight: 600;
+        }
+        .reading-content em, .reading-content i { color: var(--mystic-purple2); }
+        .reading-content p { margin: 0.8em 0; }
+        .reading-content ul, .reading-content ol {
+            padding-left: 1.5em; margin: 0.8em 0;
+        }
+        .reading-content li { margin: 0.3em 0; }
+        .reading-content li::marker { color: var(--brass-gold-dark); }
+        .reading-content blockquote {
+            border-left: 3px solid var(--brass-gold-dark); margin: 1em 0;
+            padding: 0.5em 1em; background: rgba(240,214,138,0.05);
+            border-radius: 0 8px 8px 0;
+        }
+        .reading-content code {
+            background: rgba(255,255,255,0.08); padding: 2px 6px;
+            border-radius: 4px; font-size: 0.85em; color: var(--cyan-accent);
+        }
+        .reading-content pre {
+            background: rgba(0,0,0,0.3); padding: 1em; border-radius: 8px;
+            overflow-x: auto; margin: 1em 0;
+        }
+        .reading-content pre code { background: none; padding: 0; }
+        .reading-content hr {
+            border: none; height: 1px; margin: 1.5em 0;
+            background: linear-gradient(90deg, transparent, var(--brass-gold-dark), transparent);
+        }
+        .reading-content table {
+            width: 100%; border-collapse: collapse; margin: 1em 0;
+        }
+        .reading-content th, .reading-content td {
+            border: 1px solid rgba(240,214,138,0.2); padding: 0.5em 0.8em; text-align: left;
+        }
+        .reading-content th {
+            background: rgba(240,214,138,0.1); color: var(--brass-gold-light);
+        }
+
+        /* 错误状态 */
+        .error-state { text-align: center; padding: 2rem 1rem; }
+        .error-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+        .error-msg { color: #f87171; font-size: 0.9rem; margin-bottom: 1.5rem; }
+        .retry-btn {
+            background: none; border: 1px solid var(--brass-gold-dark);
+            color: var(--text-gold); font-family: "Georgia", serif;
+            font-size: 0.9rem; padding: 0.6rem 2rem; border-radius: 25px;
+            cursor: pointer; transition: all 0.3s;
+        }
+        .retry-btn:hover { background: #fff; color: #000; border-color: #fff; }
+
+        /* ===== 底部按钮 ===== */
+        .bottom-actions {
+            text-align: center; margin-top: 2.5rem;
+        }
+        .back-btn {
+            background: linear-gradient(135deg, #4a3319 0%, #241403 100%);
+            border: 1px solid var(--brass-gold-dark); color: var(--brass-light);
+            font-family: "Georgia", serif; font-size: 1rem; letter-spacing: 4px;
+            padding: 0.8rem 2.5rem; border-radius: 30px; cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        .back-btn:hover {
+            background: #fff; color: #000; border-color: #fff;
+            box-shadow: 0 0 40px rgba(255,255,255,0.6); transform: translateY(-2px);
+        }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 480px) {
+            .page-title { font-size: 1.6rem; letter-spacing: 4px; }
+            .card-img-wrap { width: 100px; height: 160px; }
+            .cards-row { gap: 1rem; }
+            .reading-section { padding: 1.5rem 1.2rem; }
+            .reading-container { padding: 1.5rem 1rem 3rem; }
+        }
+    </style>
+</head>
+<body>
+
+<canvas class="starfield" id="starfield"></canvas>
+
+<!-- 顶部导航 -->
+<nav id="top-nav" style="position:fixed;top:0;left:0;width:100%;z-index:200;display:flex;justify-content:flex-end;align-items:center;padding:12px 24px;gap:12px;pointer-events:none;">
+    <div id="nav-auth" style="pointer-events:auto;display:flex;align-items:center;gap:10px;"></div>
+</nav>
+
+<div class="reading-container">
+    <div class="page-header">
+        <h1 class="page-title">✦ 深度解读 ✦</h1>
+        <div class="page-subtitle">ASTRAL READING</div>
+        <div class="divider"></div>
+    </div>
+
+    <div class="question-box">
+        <div class="question-label">你的问题</div>
+        <div class="question-text" id="question-text">—</div>
+    </div>
+
+    <div class="cards-section">
+        <div class="cards-section-title">命 运 之 牌</div>
+        <div class="cards-row" id="cards-row"></div>
+    </div>
+
+    <div class="reading-section">
+        <div class="reading-label">✦ 塔罗导师的智慧 ✦</div>
+        <div id="reading-area">
+            <div class="loading-state">
+                <div class="loading-orb"></div>
+                <div class="loading-text">宇宙能量正在汇聚…</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-actions">
+        <button class="back-btn" onclick="goBack()">✦ 返回重新占卜 ✦</button>
+    </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script>
+// ==================== 登录检查 ====================
+if (typeof Auth !== 'undefined' && !Auth.isLoggedIn()) {
+    var authParams = new URLSearchParams(window.location.search);
+    if (!authParams.get('history_id')) {
+        window.location.href = 'auth.html?redirect=' + encodeURIComponent(window.location.href);
+    }
+}
+
+// ==================== 顶部导航：登录状态 ====================
+(function(){
+    var nav=document.getElementById('nav-auth');
+    if(!nav) return;
+    if(typeof Auth!=='undefined' && Auth.isLoggedIn()){
+        var user=Auth.getUser();
+        var name=user&&user.username?user.username:'星际旅者';
+        nav.innerHTML=
+            '<a href="profile.html" style="color:#a5b4fc;font-size:0.8rem;text-decoration:none;letter-spacing:1px;font-family:monospace;transition:color 0.3s;" onmouseover="this.style.color=\'#FFD26A\'" onmouseout="this.style.color=\'#a5b4fc\'">✦ '+name+'</a>' +
+            '<button onclick="Auth.logout()" style="background:none;border:1px solid rgba(239,68,68,0.3);color:#f87171;font-size:0.75rem;padding:4px 12px;border-radius:15px;cursor:pointer;font-family:monospace;letter-spacing:1px;transition:all 0.3s;" onmouseover="this.style.background=\'rgba(239,68,68,0.15)\';this.style.borderColor=\'#f87171\'" onmouseout="this.style.background=\'none\';this.style.borderColor=\'rgba(239,68,68,0.3)\'">退出</button>';
+    } else {
+        nav.innerHTML=
+            '<a href="auth.html" style="border:1px solid rgba(240,214,138,0.3);color:#a5b4fc;font-size:0.78rem;text-decoration:none;padding:6px 16px;border-radius:20px;letter-spacing:2px;font-family:monospace;backdrop-filter:blur(8px);transition:all 0.3s;" onmouseover="this.style.borderColor=\'#FFD26A\';this.style.color=\'#FFD26A\'" onmouseout="this.style.borderColor=\'rgba(240,214,138,0.3)\';this.style.color=\'#a5b4fc\'">登录</a>';
+    }
+})();
+</script>
+<script>
+// ==================== 星空背景 ====================
+(function(){
+    var cv=document.getElementById('starfield'),ctx=cv.getContext('2d');
+    var stars=[];
+    function resize(){cv.width=window.innerWidth;cv.height=window.innerHeight;}
+    function init(){
+        resize(); stars=[];
+        var n=Math.min(200,Math.floor(cv.width*cv.height/8000));
+        for(var i=0;i<n;i++){
+            stars.push({x:Math.random()*cv.width,y:Math.random()*cv.height,
+                r:Math.random()*1.5+0.3,a:Math.random()*0.6+0.1,
+                ph:Math.random()*Math.PI*2,sp:Math.random()*0.4+0.2});
+        }
+    }
+    function draw(ts){
+        ctx.clearRect(0,0,cv.width,cv.height);
+        var t=ts*0.001;
+        for(var i=0;i<stars.length;i++){
+            var s=stars[i];
+            var alpha=s.a*(0.5+0.5*Math.sin(t*s.sp+s.ph));
+            ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+            ctx.fillStyle='rgba(240,214,138,'+alpha+')';ctx.fill();
+        }
+        requestAnimationFrame(draw);
+    }
+    init();requestAnimationFrame(draw);
+    window.addEventListener('resize',function(){resize();init();});
+})();
+
+// ==================== 卡牌图片映射（与 index.html 一致）====================
+var MAJOR_IMAGE_FILES = [
+    '00_Fool.jpg','01_Magician.jpg','02_High_Priestess.jpg','03_Empress.jpg','04_Emperor.jpg','05_Hierophant.jpg',
+    '06_Lovers.jpg','07_Chariot.jpg','08_Strength.jpg','09_Hermit.jpg','10_Wheel_of_Fortune.jpg','11_Justice.jpg',
+    '12_Hanged_Man.jpg','13_Death.jpg','14_Temperance.jpg','15_Devil.jpg','16_Tower.jpg','17_Star.jpg',
+    '18_Moon.jpg','19_Sun.jpg','20_Judgement.jpg','21_World.jpg'
+];
+var MINOR_IMAGE_PREFIX = { wands:'Wands', cups:'Cups', swords:'Swords', pentacles:'Pents' };
+
+function getCardImageUrl(card){
+    if(card.type==='major'){
+        var idx=parseInt(String(card.id).split('_')[1],10)||0;
+        return 'cards/full_cards/'+MAJOR_IMAGE_FILES[idx];
+    }
+    return 'cards/full_cards/'+MINOR_IMAGE_PREFIX[card.suit]+String(card.value).padStart(2,'0')+'.jpg';
+}
+
+// ==================== 渲染卡牌 ====================
+function renderCards(cards){
+    var row=document.getElementById('cards-row');
+    cards.forEach(function(c){
+        var div=document.createElement('div');
+        div.className='card-display';
+        var revClass=c.reversed?'reversed':'';
+        var oriClass=c.reversed?'rv':'up';
+        var oriLabel=c.reversed?'▼ 逆位':'▲ 正位';
+        div.innerHTML=
+            '<div class="card-img-wrap '+revClass+'">'+
+                '<img src="'+getCardImageUrl(c)+'" alt="'+c.name+'" onerror="this.style.display=\'none\'">'+
+            '</div>'+
+            '<div class="card-position">'+c.position+'</div>'+
+            '<div class="card-name">'+c.name+'</div>'+
+            '<span class="card-orientation '+oriClass+'">'+oriLabel+'</span>';
+        row.appendChild(div);
+    });
+}
+
+// ==================== 调用 AI 解读 ====================
+function fetchReading(question,cards){
+    var area=document.getElementById('reading-area');
+    var apiCards=cards.map(function(c){
+        return {id:c.id,type:c.type,suit:c.suit,value:c.value,name:c.name,nameZh:c.name,reversed:c.reversed};
+    });
+
+    var fullText='';
+    var processedLen=0;
+    var streamStarted=false;
+    var el=null;
+
+    var xhr=new XMLHttpRequest();
+    xhr.open('POST','/api/reading',true);
+    xhr.setRequestHeader('Content-Type','application/json');
+    // 携带认证 token
+    var token=typeof Auth!=='undefined'?Auth.getToken():null;
+    if(token) xhr.setRequestHeader('Authorization','Bearer '+token);
+
+    xhr.onprogress=function(){
+        var raw=xhr.responseText;
+        var newPart=raw.substring(processedLen);
+        processedLen=raw.length;
+
+        var lines=newPart.split('\n');
+        for(var i=0;i<lines.length;i++){
+            var line=lines[i].trim();
+            if(!line)continue;
+            if(line==='data: [DONE]'){
+                if(el)el.innerHTML=parseMarkdown(fullText);
+                return;
+            }
+            if(line.startsWith('data: ')){
+                try{
+                    var payload=JSON.parse(line.substring(6));
+                    if(payload.error){
+                        showError(payload.error);
+                        return;
+                    }
+                    if(payload.content){
+                        if(!streamStarted){
+                            streamStarted=true;
+                            area.innerHTML='<div class="reading-content" id="stream-text"></div>';
+                            el=document.getElementById('stream-text');
+                        }
+                        fullText+=payload.content;
+                        el.innerHTML=parseMarkdown(fullText);
+                        var section=el.closest('.reading-section');
+                        if(section)section.scrollTop=section.scrollHeight;
+                    }
+                }catch(e){}
+            }
+        }
+    };
+
+    xhr.onerror=function(){
+        showError('网络请求失败');
+    };
+
+    xhr.onload=function(){
+        // 处理 401 未授权
+        if(xhr.status===401){
+            if(typeof Auth!=='undefined') Auth.clearToken();
+            window.location.href='auth.html?redirect=reading.html';
+            return;
+        }
+        // 处理 403 额度不足
+        if(xhr.status===403){
+            try {
+                var errData=JSON.parse(xhr.responseText);
+                if(errData.code==='NO_CREDITS'){
+                    showError('额度已耗尽，请前往<a href="profile.html" style="color:var(--cyan-accent)">个人中心</a>兑换');
+                    return;
+                }
+            } catch(e){}
+        }
+        if(fullText&&el)el.innerHTML=parseMarkdown(fullText);
+    };
+
+    xhr.send(JSON.stringify({question:question,cards:apiCards}));
+}
+
+function showReading(text){
+    var area=document.getElementById('reading-area');
+    var html=parseMarkdown(text);
+    area.innerHTML='<div class="reading-content">'+html+'</div>';
+}
+
+function parseMarkdown(md){
+    // 代码块
+    md=md.replace(/```(\w*)\n([\s\S]*?)```/g,function(_,lang,code){
+        return '<pre><code>'+escHtml(code.trim())+'</code></pre>';
+    });
+    // 行内代码
+    md=md.replace(/`([^`]+)`/g,'<code>$1</code>');
+    // 标题
+    md=md.replace(/^######\s+(.+)$/gm,'<h6>$1</h6>');
+    md=md.replace(/^#####\s+(.+)$/gm,'<h5>$1</h5>');
+    md=md.replace(/^####\s+(.+)$/gm,'<h4>$1</h4>');
+    md=md.replace(/^###\s+(.+)$/gm,'<h3>$1</h3>');
+    md=md.replace(/^##\s+(.+)$/gm,'<h2>$1</h2>');
+    md=md.replace(/^#\s+(.+)$/gm,'<h1>$1</h1>');
+    // 水平线
+    md=md.replace(/^(-{3,}|\*{3,}|_{3,})$/gm,'<hr>');
+    // 引用块
+    md=md.replace(/^>\s+(.+)$/gm,'<blockquote>$1</blockquote>');
+    // 合并相邻 blockquote
+    md=md.replace(/<\/blockquote>\n<blockquote>/g,'<br>');
+    // 无序列表
+    md=md.replace(/^[\-\*]\s+(.+)$/gm,'<li>$1</li>');
+    md=md.replace(/((?:<li>.*<\/li>\n?)+)/g,'<ul>$1</ul>');
+    // 有序列表
+    md=md.replace(/^\d+\.\s+(.+)$/gm,'<li>$1</li>');
+    // 粗体+斜体
+    md=md.replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>');
+    // 粗体
+    md=md.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+    md=md.replace(/__(.+?)__/g,'<strong>$1</strong>');
+    // 斜体
+    md=md.replace(/\*(.+?)\*/g,'<em>$1</em>');
+    md=md.replace(/_(.+?)_/g,'<em>$1</em>');
+    // 链接
+    md=md.replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" style="color:var(--cyan-accent)">$1</a>');
+    // 表格（简单支持）
+    md=md.replace(/^(\|.+\|)\n(\|[-| :]+\|)\n((?:\|.+\|\n?)+)/gm, function(_,header,body,rows){
+        var ths=header.split('|').filter(function(c){return c.trim();});
+        var thead='<tr>'+ths.map(function(c){return '<th>'+c.trim()+'</th>';}).join('')+'</tr>';
+        var tbody=rows.trim().split('\n').map(function(row){
+            var tds=row.split('|').filter(function(c){return c.trim();});
+            return '<tr>'+tds.map(function(c){return '<td>'+c.trim()+'</td>';}).join('')+'</tr>';
+        }).join('');
+        return '<table><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>';
+    });
+    // 段落：双换行变 <p>，单换行变 <br>
+    md=md.replace(/\n{2,}/g,'</p><p>');
+    md=md.replace(/\n/g,'<br>');
+    // 清理多余的 <p> 包裹块级元素
+    md=md.replace(/<p>\s*<(h[1-6]|ul|ol|blockquote|pre|hr|table)/g,'<$1');
+    md=md.replace(/<\/(h[1-6]|ul|ol|blockquote|pre|hr|table)>\s*<\/p>/g,'</$1>');
+    return '<p>'+md+'</p>';
+}
+
+function escHtml(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function showError(msg){
+    var area=document.getElementById('reading-area');
+    area.innerHTML=
+        '<div class="error-state">'+
+            '<div class="error-msg">'+msg+'</div>'+
+            '<button class="retry-btn" onclick="retryReading()">重新解读</button>'+
+        '</div>';
+}
+
+function retryReading(){
+    var raw=localStorage.getItem('tarot_reading_data');
+    if(!raw)return;
+    var data=JSON.parse(raw);
+    document.getElementById('reading-area').innerHTML=
+        '<div class="loading-state">'+
+            '<div class="loading-orb"></div>'+
+            '<div class="loading-text">宇宙能量正在汇聚…</div>'+
+        '</div>';
+    fetchReading(data.question||'请为我解读这些牌',data.cards);
+}
+
+function goBack(){
+    window.location.href='index.html';
+}
+
+// ==================== 初始化 ====================
+(function(){
+    var params=new URLSearchParams(window.location.search);
+    var historyId=params.get('history_id');
+
+    // 从历史记录加载
+    if(historyId){
+        document.getElementById('question-text').textContent='加载中…';
+        if(typeof Auth!=='undefined'&&Auth.isLoggedIn()){
+            Promise.all([
+                Auth.getHistoryDetail(historyId),
+                fetch('/api/cards').then(function(r){return r.json();})
+            ]).then(function(results){
+                var data=results[0], deckData=results[1];
+                var r=data.reading;
+                document.getElementById('question-text').textContent=r.question||'—';
+                var cards=[];
+                try{cards=JSON.parse(r.cards_json);}catch(e){}
+                // 构建中文名→牌数据的查找表（兼容旧记录）
+                var nameLookup={};
+                deckData.fullDeck.forEach(function(cd){
+                    nameLookup[cd.nameZh]={id:cd.suit?cd.suit+'_'+cd.num:'major_'+cd.id,type:cd.major?'major':'minor',suit:cd.suit||null,value:cd.num||null};
+                });
+                renderCards(cards.map(function(c){
+                    var name=c.nameZh||c.name;
+                    var lookup=nameLookup[name]||{};
+                    return {
+                        id:c.id||lookup.id, type:c.type||lookup.type, suit:c.suit||lookup.suit, value:c.value||lookup.value,
+                        name:name, position:c.position, reversed:c.reversed
+                    };
+                }));
+                if(r.ai_response){
+                    var area=document.getElementById('reading-area');
+                    area.innerHTML='<div class="reading-content" id="stream-text"></div>';
+                    document.getElementById('stream-text').innerHTML=parseMarkdown(r.ai_response);
+                } else {
+                    fetchReading(r.question,cards.map(function(c){
+                        return {name:c.name||c.nameZh,nameZh:c.nameZh||c.name,reversed:c.reversed};
+                    }));
+                }
+            }).catch(function(err){
+                document.getElementById('reading-area').innerHTML=
+                    '<div class="error-state"><div class="error-msg">'+err.message+'</div></div>';
+            });
+        } else {
+            window.location.href='auth.html?redirect='+encodeURIComponent(window.location.href);
+        }
+        return;
+    }
+
+    // 从 localStorage 加载（占卜流程）
+    var raw=localStorage.getItem('tarot_reading_data');
+    if(!raw){
+        document.getElementById('question-text').textContent='未找到占卜数据，请返回重新占卜';
+        document.getElementById('reading-area').innerHTML=
+            '<div class="error-state"><div class="error-msg">请先进行一次占卜</div></div>';
+        return;
+    }
+
+    var data;
+    try{ data=JSON.parse(raw); }catch(e){
+        document.getElementById('reading-area').innerHTML=
+            '<div class="error-state"><div class="error-msg">数据解析失败</div></div>';
+        return;
+    }
+
+    if(!data.cards||!data.cards.length){
+        document.getElementById('reading-area').innerHTML=
+            '<div class="error-state"><div class="error-msg">没有抽牌数据</div></div>';
+        return;
+    }
+
+    document.getElementById('question-text').textContent=data.question||'未输入问题';
+    renderCards(data.cards);
+    fetchReading(data.question||'请为我解读这些牌',data.cards);
+})();
+</script>
+</body>
+</html>

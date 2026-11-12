@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>手势识别测试</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#111;color:#eee;font-family:system-ui;display:flex;flex-direction:column;align-items:center;padding:12px;min-height:100vh}
+h1{margin-bottom:12px;font-size:18px;text-align:center;line-height:1.4}
+.row{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;justify-content:center;width:100%}
+.video-wrap{position:relative;border-radius:12px;overflow:hidden;background:#000;width:100%;max-width:480px;aspect-ratio:4/3}
+video{display:block;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+canvas{position:absolute;top:0;left:0;width:100%;height:100%;transform:scaleX(-1)}
+.side{width:100%;max-width:480px;display:flex;flex-direction:column;gap:10px}
+.card{background:#1a1a2e;border-radius:10px;padding:12px}
+.card h3{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.gesture-display{font-size:48px;text-align:center;min-height:60px;line-height:60px}
+.gesture-label{font-size:22px;font-weight:bold;color:#5eead4;text-align:center;min-height:32px}
+.log{max-height:140px;overflow-y:auto;font-size:11px;color:#888;line-height:1.7}
+.log .t{color:#555}.log .g{color:#5eead4;font-weight:bold}.log .n{color:#f59e0b}
+.stats span{color:#5eead4;font-weight:bold}
+.stats{font-size:13px;line-height:1.7}
+#startBtn{padding:14px 36px;font-size:16px;border:none;border-radius:10px;background:#5eead4;color:#111;cursor:pointer;margin-bottom:16px;font-weight:bold;-webkit-tap-highlight-color:transparent}
+#startBtn:disabled{opacity:.4}
+.toggle-btn{display:block;width:100%;padding:8px;background:none;border:1px solid #333;border-radius:8px;color:#888;font-size:12px;cursor:pointer;margin-bottom:4px;text-align:left;padding-left:12px}
+.toggle-btn.open{color:#5eead4;border-color:#5eead433}
+
+/* 桌面端：左右布局 */
+@media(min-width:768px){
+  h1{font-size:22px}
+  .row{max-width:800px}
+  .video-wrap{width:480px;height:360px;aspect-ratio:auto}
+  .side{width:260px;max-width:none}
+  .gesture-display{font-size:60px;min-height:80px;line-height:80px}
+  .gesture-label{font-size:28px;min-height:40px}
+  .log{max-height:180px}
+}
+</style>
+</head>
+<body>
+<h1>🖐️ 手势识别测试（握拳 / 竖单指 / 挥手）</h1>
+<button id="startBtn">开启摄像头</button>
+<div class="row" id="main" style="display:none">
+  <div class="video-wrap">
+    <video id="v" playsinline></video>
+    <canvas id="c"></canvas>
+  </div>
+  <div class="side">
+    <div class="card">
+      <h3>识别结果</h3>
+      <div class="gesture-display" id="gEmoji">❓</div>
+      <div class="gesture-label" id="gName">等待检测</div>
+    </div>
+    <button class="toggle-btn" onclick="toggleCard('fingerCard',this)">▶ 手指状态</button>
+    <div class="card" id="fingerCard" style="display:none">
+      <div class="stats" id="fingerStats">-</div>
+    </div>
+    <button class="toggle-btn" onclick="toggleCard('thumbCard',this)">▶ 拇指角度数据</button>
+    <div class="card" id="thumbCard" style="display:none">
+      <div class="stats" id="thumbData">-</div>
+    </div>
+    <button class="toggle-btn" onclick="toggleCard('waveCard',this)">▶ 挥手移动数据</button>
+    <div class="card" id="waveCard" style="display:none">
+      <div class="stats" id="waveData">range: 0 | net: 0</div>
+    </div>
+    <button class="toggle-btn open" onclick="toggleCard('logCard',this)">▼ 触发记录</button>
+    <div class="card" id="logCard">
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script>
+function toggleCard(id,btn){
+  var el=document.getElementById(id);
+  var open=el.style.display==='none';
+  el.style.display=open?'block':'none';
+  btn.textContent=(open?'▼ ':'▶ ')+btn.textContent.replace(/^[▶▼]\s/,'');
+  btn.classList.toggle('open',open);
+}
+
+var video=document.getElementById('v');
+var canvas=document.getElementById('c');
+var ctx=canvas.getContext('2d');
+var startBtn=document.getElementById('startBtn');
+var mainDiv=document.getElementById('main');
+var gEmoji=document.getElementById('gEmoji');
+var gName=document.getElementById('gName');
+var fingerStats=document.getElementById('fingerStats');
+var thumbDataDiv=document.getElementById('thumbData');
+var logDiv=document.getElementById('log');
+
+var lastTrigger='';
+var lastTriggerTime=0;
+var stableCount=0;
+var stableGesture='none';
+
+var wristHistory=[];
+var WAVE_WINDOW=1000;
+var WAVE_MIN_RANGE=0.2;
+var WAVE_COOLDOWN=500;
+var WAVE_HOLD=800;
+var waveActiveUntil=0;
+var WAVE_DIR_THRESHOLD=0.015;
+var waveLeftDetectedTime=0;
+var waveRightDetectedTime=0;
+var lastWaveDir='';
+var lastWaveEndTime=0;
+var waveDebugRange=0;
+var waveDebugNet=0;
+
+var HAND_CONNECTIONS=[
+  [0,1],[1,2],[2,3],[3,4],
+  [0,5],[5,6],[6,7],[7,8],
+  [0,9],[9,10],[10,11],[11,12],
+  [0,13],[13,14],[14,15],[15,16],
+  [0,17],[17,18],[18,19],[19,20],
+  [5,9],[9,13],[13,17]
+];
+
+function dist(a,b){return Math.sqrt(Math.pow(a.x-b.x,2)+Math.pow(a.y-b.y,2))}
+
+function angleBetween(a,b,c){
+  var v1x=a.x-b.x,v1y=a.y-b.y,v2x=c.x-b.x,v2y=c.y-b.y;
+  var dot=v1x*v2x+v1y*v2y;
+  var cos=dot/(dist(a,b)*dist(c,b)+0.0001);
+  return Math.acos(Math.max(-1,Math.min(1,cos)));
+}
+
+function isFingerExtended(lm,finger){
+  var tips=[8,12,16,20],pips=[6,10,14,18],dips=[7,11,15,19],mcps=[5,9,13,17];
+  var idx={index:0,middle:1,ring:2,pinky:3}[finger];
+  var tip=lm[tips[idx]],pip=lm[pips[idx]],dip=lm[dips[idx]],mcp=lm[mcps[idx]],wrist=lm[0];
+  var ratio=dist(tip,wrist)/(dist(mcp,wrist)+0.001);
+  var tipAbovePip=tip.y<pip.y;
+  var v1x=tip.x-dip.x,v1y=tip.y-dip.y,v2x=pip.x-dip.x,v2y=pip.y-dip.y;
+  var dot=v1x*v2x+v1y*v2y;
+  var cosAngle=dot/(dist(tip,dip)*dist(pip,dip)+0.001);
+  return (ratio>1.15&&tipAbovePip)||(cosAngle>0.5&&ratio>1.0);
+}
+
+function isThumbExtended(lm){
+  var angle=angleBetween(lm[2],lm[3],lm[4]);
+  return angle>2.6;
+}
+
+function detectWave(lm){
+  var palmX=(lm[0].x+lm[9].x)/2;
+  var now=Date.now();
+  wristHistory.push({x:palmX,time:now});
+  while(wristHistory.length>0&&now-wristHistory[0].time>WAVE_WINDOW)wristHistory.shift();
+  if(wristHistory.length<5)return false;
+  var mn=Infinity,mx=-Infinity;
+  for(var i=0;i<wristHistory.length;i++){
+    mn=Math.min(mn,wristHistory[i].x);
+    mx=Math.max(mx,wristHistory[i].x);
+  }
+  var range=mx-mn;
+  var netDisplacement=wristHistory[wristHistory.length-1].x-wristHistory[0].x;
+  waveDebugRange=range;
+  waveDebugNet=netDisplacement;
+  if(range<WAVE_MIN_RANGE)return false;
+  if(Math.abs(netDisplacement)>=WAVE_DIR_THRESHOLD){
+    return netDisplacement>0?'left':'right';
+  }
+  return false;
+}
+
+function recognizeGesture(lm){
+  var thumb=isThumbExtended(lm);
+  var index=isFingerExtended(lm,'index');
+  var middle=isFingerExtended(lm,'middle');
+  var ring=isFingerExtended(lm,'ring');
+  var pinky=isFingerExtended(lm,'pinky');
+  var count=[thumb,index,middle,ring,pinky].filter(Boolean).length;
+  var now=Date.now();
+
+  if(now<waveActiveUntil){
+    var holdId=lastWaveDir==='left'?'wave-left':'wave-right';
+    var holdName=lastWaveDir==='left'?'向左挥手':'向右挥手';
+    var holdEmoji=lastWaveDir==='left'?'👈':'👉';
+    return {id:holdId,name:holdName,emoji:holdEmoji};
+  }
+  var waveResult=detectWave(lm);
+  if(waveResult){
+    var cdTime=waveResult==='left'?waveLeftDetectedTime:waveRightDetectedTime;
+    if(now-cdTime>WAVE_COOLDOWN&&now-lastWaveEndTime>WAVE_COOLDOWN){
+      if(waveResult==='left')waveLeftDetectedTime=now;
+      else waveRightDetectedTime=now;
+      lastWaveDir=waveResult;
+      waveActiveUntil=now+WAVE_HOLD;
+      wristHistory=[];
+      return {id:'wave-'+waveResult,name:waveResult==='left'?'向左挥手':'向右挥手',emoji:waveResult==='left'?'👈':'👉'};
+    }
+  }else{
+    lastWaveEndTime=now;
+  }
+  if(count===0)return {id:'fist',name:'握拳',emoji:'✊'};
+  if(!thumb&&index&&!middle&&!ring&&!pinky)return {id:'point',name:'竖单指',emoji:'☝️'};
+  return {id:'none',name:'未识别',emoji:'❓'};
+}
+
+function drawHand(lm){
+  canvas.width=canvas.clientWidth;
+  canvas.height=canvas.clientHeight;
+  var w=canvas.width,h=canvas.height;
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle='#5eead4';ctx.lineWidth=2;
+  for(var i=0;i<HAND_CONNECTIONS.length;i++){
+    var a=lm[HAND_CONNECTIONS[i][0]],b=lm[HAND_CONNECTIONS[i][1]];
+    ctx.beginPath();ctx.moveTo(a.x*w,a.y*h);ctx.lineTo(b.x*w,b.y*h);ctx.stroke();
+  }
+  for(var j=0;j<lm.length;j++){
+    var p=lm[j];
+    ctx.beginPath();ctx.arc(p.x*w,p.y*h,j%4===0?5:3,0,Math.PI*2);
+    ctx.fillStyle=j===0?'#f87171':'#a78bfa';ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.7)';ctx.lineWidth=1;ctx.stroke();
+  }
+}
+
+function updateFingerStats(lm){
+  var thumb=isThumbExtended(lm);
+  var index=isFingerExtended(lm,'index');
+  var middle=isFingerExtended(lm,'middle');
+  var ring=isFingerExtended(lm,'ring');
+  var pinky=isFingerExtended(lm,'pinky');
+  var labels=['拇指','食指','中指','无名指','小指'];
+  var vals=[thumb,index,middle,ring,pinky];
+  var html='';
+  for(var i=0;i<5;i++){
+    html+=labels[i]+': '+(vals[i]?'<span style="color:#22c55e">伸直</span>':'<span style="color:#ef4444">弯曲</span>')+'<br>';
+  }
+  fingerStats.innerHTML=html;
+
+  var tip=lm[4],ip=lm[3],mcp=lm[2];
+  var tipMcp=dist(tip,mcp);
+  var mcpIp=dist(mcp,ip);
+  thumbDataDiv.innerHTML=
+    'tipMcp: <span style="color:#5eead4">'+tipMcp.toFixed(4)+'</span><br>'+
+    'mcpIp: <span style="color:#5eead4">'+mcpIp.toFixed(4)+'</span><br>'+
+    'ratio: <span style="color:#f59e0b">'+(tipMcp/mcpIp).toFixed(4)+'</span>';
+}
+
+function addLog(text){
+  var time=new Date().toLocaleTimeString();
+  logDiv.innerHTML='<div><span class="t">['+time+']</span> '+text+'</div>'+logDiv.innerHTML;
+}
+
+// 检测是否为移动设备
+var isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+startBtn.addEventListener('click',function(){
+  startBtn.disabled=true;startBtn.textContent='加载中...';
+  var hands=new Hands({locateFile:function(f){return 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/'+f}});
+  hands.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:0.7,minTrackingConfidence:0.5});
+  hands.onResults(function(results){
+    if(results.multiHandLandmarks&&results.multiHandLandmarks.length>0){
+      var lm=results.multiHandLandmarks[0];
+      var g=recognizeGesture(lm);
+      drawHand(lm);
+      updateFingerStats(lm);
+      gEmoji.textContent=g.emoji;
+      gName.textContent=g.name;
+      gName.style.color=g.id==='none'?'#f59e0b':'#5eead4';
+      document.getElementById('waveData').textContent='range: '+waveDebugRange.toFixed(4)+' | net: '+waveDebugNet.toFixed(4);
+
+      var gFamily=g.id==='wave-left'||g.id==='wave-right'?'wave':g.id;
+      if(gFamily===lastTrigger)stableCount++;else{lastTrigger=gFamily;stableCount=0;}
+      var now=Date.now();
+      if(stableCount===5&&g.id!=='none'&&now-lastWaveEndTime>WAVE_COOLDOWN){
+        lastTriggerTime=now;
+        addLog('<span class="g">'+g.emoji+' '+g.name+'</span> ✓ 触发');
+      }
+    }else{
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      gEmoji.textContent='❓';gName.textContent='未检测到手';gName.style.color='#666';
+      fingerStats.innerHTML='-';lastTrigger='none';stableCount=0;waveActiveUntil=0;lastWaveDir='';lastWaveEndTime=Date.now();
+      waveDebugRange=0;waveDebugNet=0;
+      document.getElementById('waveData').textContent='range: 0 | net: 0';
+    }
+  });
+
+  // 移动端使用前置摄像头，降低分辨率提升性能
+  var camConfig={
+    onFrame:async function(){await hands.send({image:video})},
+    width:isMobile?480:640,
+    height:isMobile?360:480,
+    facingMode:'user'
+  };
+  var cam=new Camera(video,camConfig);
+  cam.start().then(function(){
+    startBtn.style.display='none';mainDiv.style.display='flex';
+    addLog('摄像头已开启'+(isMobile?' (移动端前置)':'')+'，请比出手势');
+  }).catch(function(e){
+    var msg='摄像头错误: '+e.message+'\n\n可能原因:\n';
+    msg+='1. 摄像头被其他应用占用\n';
+    msg+='2. 浏览器没有摄像头权限\n';
+    msg+='3. 没有可用的摄像头设备';
+    alert(msg);startBtn.disabled=false;startBtn.textContent='开启摄像头';
+  });
+});
+</script>
+</body>
+</html>

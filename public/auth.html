@@ -1,0 +1,1525 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>塔罗之主 - 登录</title>
+    <script src="https://lib.baomitu.com/three.js/0.160.0/three.min.js"></script>
+    <style>
+        :root {
+            --void-black: #000001;
+            --brass-gold: #FFD26A;
+            --brass-gold-dark: #D4A843;
+            --brass-light: #FFF8E7;
+            --brass-gold-light: #F0D68A;
+            --hyper-blue: #38BDF8;
+            --mystic-purple2: #A78BFA;
+            --cyan-accent: #20D0C0;
+            --text-gold: #E8D5A3;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body, html {
+            width: 100%; min-height: 100vh; background: var(--void-black);
+            font-family: "Georgia", serif, system-ui; color: #e2e8f0;
+            overflow-x: hidden;
+        }
+        /* ===== 7层粒子星系背景 ===== */
+        #three-bg {
+            position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #000;
+            cursor: pointer;
+        }
+        #three-bg canvas { display: block; width: 100%; height: 100%; }
+        #cosmic-vignette {
+            position: fixed; inset: 0; z-index: 1; pointer-events: none;
+            background: radial-gradient(circle at 50% 50%, transparent 32%, rgba(0,0,0,0.35) 62%, rgba(0,0,0,0.92) 100%);
+        }
+        .auth-container {
+            position: relative; z-index: 2; max-width: 420px; margin: 0 auto;
+            padding: 4rem 2rem 3rem; min-height: 100vh;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+        .page-header { text-align: center; margin-bottom: 2.5rem; }
+        .page-title {
+            font-size: 2.2rem; color: var(--brass-light); font-weight: 400;
+            letter-spacing: 8px;
+            text-shadow: 0 0 40px rgba(255,248,231,0.4), 0 0 80px rgba(56,189,248,0.2);
+        }
+        .page-subtitle {
+            font-size: 0.75rem; font-family: monospace; letter-spacing: 8px;
+            color: var(--hyper-blue); text-transform: uppercase; margin-top: 0.5rem;
+        }
+        .divider {
+            width: 120px; height: 1px; margin: 1.5rem auto;
+            background: linear-gradient(90deg, transparent, var(--brass-gold-dark), transparent);
+        }
+
+        .auth-card {
+            background: #0f0a1e;
+            border: 1px solid rgba(214,168,67,0.15); border-radius: 16px;
+            padding: 2rem 2rem; position: relative;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+        .auth-card::before, .auth-card::after {
+            content: ''; position: absolute; width: 12px; height: 12px;
+            border: 2px solid var(--brass-gold-dark); pointer-events: none;
+        }
+        .auth-card::before { top: 6px; left: 6px; border-right: none; border-bottom: none; }
+        .auth-card::after { bottom: 6px; right: 6px; border-left: none; border-top: none; }
+
+        .tab-bar {
+            display: flex; gap: 0; margin-bottom: 1.8rem;
+            border-bottom: 1px solid rgba(214,168,67,0.15);
+        }
+        .tab-btn {
+            flex: 1; padding: 0.8rem; background: none; border: none;
+            color: #64748b; font-family: "Georgia", serif; font-size: 1rem;
+            letter-spacing: 2px; cursor: pointer; transition: all 0.3s;
+            border-bottom: 2px solid transparent;
+        }
+        .tab-btn.active {
+            color: var(--brass-gold-light);
+            border-bottom-color: var(--brass-gold-dark);
+        }
+        .tab-btn:hover { color: var(--brass-gold-light); }
+
+        .form-group { margin-bottom: 1.2rem; }
+        .form-label {
+            display: block; font-size: 0.7rem; font-family: monospace;
+            color: var(--cyan-accent); letter-spacing: 2px;
+            text-transform: uppercase; margin-bottom: 0.5rem;
+        }
+        .form-input {
+            width: 100%; background: rgba(2,2,8,0.5); border: 1px solid rgba(255,210,106,0.2);
+            border-radius: 10px; padding: 0.9rem 1rem; color: #fff;
+            font-size: 0.95rem; outline: none; transition: all 0.3s;
+        }
+        .form-input:focus {
+            border-color: var(--brass-gold);
+            box-shadow: 0 0 20px rgba(255,210,106,0.15);
+        }
+        .form-input::placeholder { color: #3f3f46; }
+
+        .submit-btn {
+            width: 100%; padding: 0.9rem; background: linear-gradient(135deg, #4a3319, #241403);
+            border: 1px solid var(--brass-gold-dark); border-radius: 25px;
+            color: var(--brass-light); font-family: "Georgia", serif;
+            font-size: 1rem; letter-spacing: 4px; cursor: pointer;
+            transition: all 0.4s; margin-top: 0.5rem;
+        }
+        .submit-btn:hover {
+            background: #fff; color: #000; border-color: #fff;
+            box-shadow: 0 0 30px rgba(255,255,255,0.5);
+        }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .link-row {
+            text-align: center; margin-top: 1.2rem;
+        }
+        .link-btn {
+            background: none; border: none; color: var(--hyper-blue);
+            font-size: 0.8rem; cursor: pointer; text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+        .link-btn:hover { color: var(--cyan-accent); }
+
+        .msg-box {
+            padding: 0.7rem 1rem; border-radius: 8px; font-size: 0.85rem;
+            margin-bottom: 1rem; display: none;
+        }
+        .msg-box.error { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #f87171; }
+        .msg-box.success { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); color: #4ade80; }
+
+        .back-link {
+            display: block; text-align: center; margin-top: 1.5rem;
+            color: #64748b; font-size: 0.8rem; text-decoration: none;
+        }
+        .back-link:hover { color: var(--text-gold); }
+
+        .forgot-form { display: none; }
+        .forgot-form.active { display: block; }
+
+        @media (max-width: 480px) {
+            .page-title { font-size: 1.6rem; letter-spacing: 4px; }
+            .auth-container { padding: 3rem 1.2rem 2rem; }
+        }
+    </style>
+</head>
+<body>
+<div id="three-bg"></div>
+<div id="cosmic-vignette"></div>
+
+<div class="auth-container">
+    <div class="page-header">
+        <h1 class="page-title">塔罗之主</h1>
+        <div class="page-subtitle">ASTRAL TAROT</div>
+        <div class="divider"></div>
+    </div>
+
+    <div class="auth-card">
+        <div id="msg" class="msg-box"></div>
+
+        <!-- 登录/注册 Tab -->
+        <div id="auth-tabs">
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="switchTab('login')">登录</button>
+                <button class="tab-btn" onclick="switchTab('register')">注册</button>
+            </div>
+
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label class="form-label">邮箱 / 用户名</label>
+                    <input class="form-input" type="text" id="login-email" placeholder="请输入邮箱或用户名" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">密码</label>
+                    <input class="form-input" type="password" id="login-password" placeholder="输入密码" required>
+                </div>
+                <button type="submit" class="submit-btn" id="login-btn">登 录</button>
+                <div class="link-row">
+                    <button type="button" class="link-btn" onclick="showForgot()">忘记密码？</button>
+                </div>
+            </form>
+
+            <form id="register-form" style="display:none" onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <label class="form-label">邮箱</label>
+                    <input class="form-input" type="email" id="reg-email" placeholder="your@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">昵称</label>
+                    <input class="form-input" type="text" id="reg-username" placeholder="星际旅者（可选）">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">密码</label>
+                    <input class="form-input" type="password" id="reg-password" placeholder="至少 6 位" required minlength="6">
+                </div>
+                <button type="submit" class="submit-btn" id="reg-btn">注 册</button>
+            </form>
+        </div>
+
+        <!-- 忘记密码 -->
+        <div id="forgot-section" class="forgot-form">
+            <form onsubmit="handleForgot(event)">
+                <div class="form-group">
+                    <label class="form-label">注册邮箱</label>
+                    <input class="form-input" type="email" id="forgot-email" placeholder="your@email.com" required>
+                </div>
+                <button type="submit" class="submit-btn" id="forgot-btn">发送重置链接</button>
+                <div class="link-row">
+                    <button type="button" class="link-btn" onclick="showAuth()">返回登录</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 重发验证邮件（内嵌在弹出提示中，由JS控制） -->
+    </div>
+
+    <a class="back-link" href="index.html">✦ 返回星河 ✦</a>
+</div>
+
+<script src="js/auth.js"></script>
+<script>
+// ==================== 7层粒子星系背景（来自参考） ====================
+(function(){
+function startCanvasGalaxyFallback() {
+    const host = document.getElementById('three-bg');
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    host.appendChild(canvas);
+
+    let particles = [];
+    let bursts = [];
+    let scatter = 0;
+    let targetScatter = 0;
+    let gatherTimer = null;
+    const colors = [
+        [28,42,96], [46,54,92], [24,18,86], [42,16,76],
+        [14,52,82], [74,70,96], [54,40,18], [6,4,18]
+    ];
+
+    function resize() {
+        canvas.width = window.innerWidth * Math.min(window.devicePixelRatio || 1, 2);
+        canvas.height = window.innerHeight * Math.min(window.devicePixelRatio || 1, 2);
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        buildParticles();
+    }
+
+    function buildParticles() {
+        particles = [];
+        const count = Math.min(3000, Math.floor(window.innerWidth * window.innerHeight / 280));
+        for (let i = 0; i < count; i++) {
+            const radius = Math.pow(Math.random(), 1.25) * Math.min(canvas.width, canvas.height) * 0.42;
+            const arm = Math.floor(Math.random() * 5);
+            const angle = Math.random() * Math.PI * 2 + arm * Math.PI * 0.4 + radius * 0.006;
+            const color = colors[(Math.floor(Math.random() * (colors.length - 1)) + arm) % (colors.length - 1)];
+            particles.push({ radius, angle, wobble: (Math.random() - 0.5) * 40, size: 40.5 + Math.random() * 103.5, alpha: 0.045 + Math.random() * 0.085, speed: 0.0008 + Math.random() * 0.0018, color, phase: Math.random() * Math.PI * 2, scatterAngle: (Math.random() - 0.5) * Math.PI * 0.8, scatterPower: 0.55 + Math.random() * 0.65, scatterCurl: (Math.random() - 0.5) * 0.7 });
+        }
+    }
+
+    function addBurst(x, y) {
+        bursts.push({ x, y, life: 1, color: colors[Math.floor(Math.random() * (colors.length - 1))] });
+    }
+
+    host.addEventListener('click', function(e) {
+        addBurst(e.clientX * (window.devicePixelRatio || 1), e.clientY * (window.devicePixelRatio || 1));
+        targetScatter = 1;
+        if (gatherTimer) clearTimeout(gatherTimer);
+        gatherTimer = setTimeout(function() { targetScatter = 0; }, 850);
+    });
+    window.addEventListener('resize', resize);
+    resize();
+
+    function draw(ts) {
+        const t = ts * 0.001;
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.globalCompositeOperation = 'screen';
+        scatter += (targetScatter - scatter) * 0.12;
+
+        const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(canvas.width, canvas.height) * 0.32);
+        core.addColorStop(0, 'rgba(28,38,86,0.055)');
+        core.addColorStop(0.16, 'rgba(58,44,18,0.045)');
+        core.addColorStop(0.42, 'rgba(28,12,72,0.045)');
+        core.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = core;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(1, 0.56);
+        for (const p of particles) {
+            const a = p.angle + t * p.speed * (1 + 280 / (p.radius + 40));
+            const drift = Math.sin(t * 0.7 + p.phase) * p.wobble;
+            const scatterAmount = scatter * (90 + p.radius * (0.35 + p.scatterPower * 0.75));
+            const looseAngle = a + p.scatterAngle + Math.sin(t * (0.45 + p.scatterPower * 0.35) + p.phase) * 0.18;
+            const curl = scatter * p.scatterCurl * (16 + p.radius * 0.12);
+            const baseX = Math.cos(a) * p.radius + Math.cos(a + Math.PI / 2) * drift;
+            const baseY = Math.sin(a) * p.radius + Math.sin(a + Math.PI / 2) * drift * 0.22;
+            const x = baseX + Math.cos(looseAngle) * scatterAmount + Math.cos(looseAngle + Math.PI / 2) * curl;
+            const y = baseY + Math.sin(looseAngle) * scatterAmount + Math.sin(looseAngle + Math.PI / 2) * curl * 0.35;
+            const pulse = 0.72 + Math.sin(t * 1.4 + p.phase) * 0.28;
+            ctx.beginPath();
+            ctx.arc(x, y, p.size * pulse, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${p.color[0]},${p.color[1]},${p.color[2]},${Math.min(0.12, p.alpha * pulse * 0.38)})`;
+            ctx.fill();
+        }
+        ctx.restore();
+
+        for (let i = bursts.length - 1; i >= 0; i--) {
+            const b = bursts[i];
+            b.life -= 0.018;
+            if (b.life <= 0) { bursts.splice(i, 1); continue; }
+            const r = (1 - b.life) * 170 + 20;
+            const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, r);
+            g.addColorStop(0, `rgba(90,100,150,${b.life * 0.16})`);
+            g.addColorStop(0.24, `rgba(${b.color[0]},${b.color[1]},${b.color[2]},${Math.min(0.18, b.life * 0.18)})`);
+            g.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.globalCompositeOperation = 'source-over';
+        requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+}
+
+if (typeof THREE === 'undefined') {
+    startCanvasGalaxyFallback();
+    return;
+}
+// ===================== 基础场景 =====================
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+
+// 相机正对屏幕，沿Z轴看向原点
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 500);
+camera.position.set(0, 0, 100);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ReinhardToneMapping;
+renderer.toneMappingExposure = 1.25;
+document.getElementById("three-bg").appendChild(renderer.domElement);
+
+const galaxyGroup = new THREE.Group();
+galaxyGroup.scale.setScalar(2.0);
+scene.add(galaxyGroup);
+
+// 窗口自适应
+window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    allMaterials.forEach(mat => {
+        mat.uniforms.uPixelRatio.value = renderer.getPixelRatio();
+    });
+});
+
+// ===================== 着色器（XY平面对屏 / 无鼠标跟随） =====================
+// 1. 星云云
+const starCloudShaders = {
+    vertex: `
+        attribute float aRandom;
+        attribute float aExplosionRandom;
+        attribute float aBaseAngle;
+        attribute float aRadius;
+
+        uniform float uTime;
+        uniform float uPixelRatio;
+        uniform float uSize;
+        uniform float uExplosionStart;
+        uniform float uExplosionStrength;
+        uniform float uScatter;
+
+        varying float vAlpha;
+
+        void main() {
+            float angle = aBaseAngle + uTime * 0.08 * (0.3 + aRandom * 0.4);
+
+            // XY平面对屏圆周运动，Z永远为0
+            vec3 pos = vec3(
+                cos(angle) * aRadius,
+                sin(angle) * aRadius,
+                0.0
+            );
+            pos.y += sin(uTime * 0.4 + aRandom * 6.28) * 0.3;
+
+            // 爆炸：仅XY平面径向扩散，Z不变，加最大限制防飞出
+            float scatterSeed = fract(sin(aRandom * 91.73 + aBaseAngle * 13.17) * 43758.5453);
+            float scatterAngle = atan(pos.y, pos.x) + (scatterSeed - 0.5) * 1.2 + sin(uTime * (0.7 + scatterSeed) + scatterSeed * 6.2831) * 0.22;
+            vec2 radialDir = normalize(pos.xy + vec2(0.0001));
+            vec2 explodeDir = normalize(vec2(cos(scatterAngle), sin(scatterAngle)) * 0.55 + radialDir * (0.65 + scatterSeed * 0.25));
+            vec2 tangentDir = vec2(-explodeDir.y, explodeDir.x);
+            float scatterPulse = 0.82 + 0.16 * sin(uTime * (1.0 + scatterSeed * 1.2) + scatterSeed * 6.2831);
+            float scatterForce = uScatter * uExplosionStrength * aExplosionRandom * (1.8 + scatterSeed * 2.0) * scatterPulse;
+            pos.xy += explodeDir * scatterForce + tangentDir * scatterForce * (scatterSeed - 0.5) * 0.28;
+
+            vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+            gl_Position = projectionMatrix * mvPosition;
+            gl_PointSize = uSize * uPixelRatio * (1.0 / -mvPosition.z);
+            vAlpha = 0.68 + aRandom * 0.42;
+        }
+    `,
+    fragment: `
+        uniform vec3 uColor;
+        varying float vAlpha;
+
+        void main() {
+            float dist = length(gl_PointCoord - vec2(0.5));
+            if (dist > 0.5) discard;
+
+            float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
+            gl_FragColor = vec4(uColor, alpha * vAlpha * 0.84);
+        }
+    `
+};
+
+// 2. 晕光层
+const galacticHaloShaders = {
+    vertex: `
+        attribute float aRadius;
+        attribute float aBaseAngle;
+        attribute float aArmIndex;
+        attribute float aRandom;
+        attribute float aExplosionRandom;
+
+        uniform float uTime;
+        uniform float uPixelRatio;
+        uniform float uSize;
+        uniform float uExplosionStart;
+        uniform float uExplosionStrength;
+        uniform float uScatter;
+
+        varying float vRadiusNorm;
+        varying float vAlpha;
+
+        void main() {
+            float angle = aBaseAngle + uTime * 0.06 * (0.4 + aRandom * 0.35);
+
+            float radius = aRadius + aRandom * 2.0;
+            vec3 pos = vec3(
+                cos(angle) * radius,
+                sin(angle) * radius,
+                0.0
+            );
+
+            float scatterSeed = fract(sin(aRandom * 91.73 + aBaseAngle * 13.17) * 43758.5453);
+            float scatterAngle = atan(pos.y, pos.x) + (scatterSeed - 0.5) * 1.2 + sin(uTime * (0.7 + scatterSeed) + scatterSeed * 6.2831) * 0.22;
+            vec2 radialDir = normalize(pos.xy + vec2(0.0001));
+            vec2 explodeDir = normalize(vec2(cos(scatterAngle), sin(scatterAngle)) * 0.55 + radialDir * (0.65 + scatterSeed * 0.25));
+            vec2 tangentDir = vec2(-explodeDir.y, explodeDir.x);
+            float scatterPulse = 0.82 + 0.16 * sin(uTime * (1.0 + scatterSeed * 1.2) + scatterSeed * 6.2831);
+            float scatterForce = uScatter * uExplosionStrength * aExplosionRandom * (1.8 + scatterSeed * 2.0) * scatterPulse;
+            pos.xy += explodeDir * scatterForce + tangentDir * scatterForce * (scatterSeed - 0.5) * 0.28;
+
+            vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+            gl_Position = projectionMatrix * mvPosition;
+            gl_PointSize = uSize * uPixelRatio * (1.0 / -mvPosition.z);
+            vRadiusNorm = aRadius / 45.0;
+            vAlpha = 0.6 + aRandom * 0.42;
+        }
+    `,
+    fragment: `
+        varying float vRadiusNorm;
+        varying float vAlpha;
+
+        void main() {
+            float dist = length(gl_PointCoord - vec2(0.5));
+            if (dist > 0.5) discard;
+
+            vec3 c0 = vec3(1.0, 0.88, 0.45);
+            vec3 c1 = vec3(1.0, 0.45, 0.75);
+            vec3 c2 = vec3(0.65, 0.25, 0.95);
+            vec3 c3 = vec3(0.25, 0.85, 1.0);
+
+            vec3 color;
+            if (vRadiusNorm < 0.33) {
+                color = mix(c0, c1, vRadiusNorm / 0.33);
+            } else if (vRadiusNorm < 0.66) {
+                color = mix(c1, c2, (vRadiusNorm - 0.33) / 0.33);
+            } else {
+                color = mix(c2, c3, (vRadiusNorm - 0.66) / 0.34);
+            }
+
+            float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
+            gl_FragColor = vec4(color, alpha * vAlpha * 0.89);
+        }
+    `
+};
+
+// 3. 主星系（内快外慢）
+const galaxySystemShaders = {
+    vertex: `
+        attribute float aRadius;
+        attribute float aBaseAngle;
+        attribute float aArmIndex;
+        attribute float aRandom;
+        attribute float aExplosionRandom;
+
+        uniform float uTime;
+        uniform float uPixelRatio;
+        uniform float uSize;
+        uniform float uExplosionStart;
+        uniform float uExplosionStrength;
+        uniform float uScatter;
+
+        varying float vRadiusNorm;
+        varying float vAlpha;
+
+        void main() {
+            float normalizedRadius = aRadius / 40.0;
+            float speed = 0.12 * (1.0 - normalizedRadius * 0.75);
+            float angle = aBaseAngle + uTime * speed;
+
+            float radius = aRadius + (aRandom - 0.5) * 1.2;
+            vec3 pos = vec3(
+                cos(angle) * radius,
+                sin(angle) * radius,
+                0.0
+            );
+
+            float scatterSeed = fract(sin(aRandom * 91.73 + aBaseAngle * 13.17) * 43758.5453);
+            float scatterAngle = atan(pos.y, pos.x) + (scatterSeed - 0.5) * 1.2 + sin(uTime * (0.7 + scatterSeed) + scatterSeed * 6.2831) * 0.22;
+            vec2 radialDir = normalize(pos.xy + vec2(0.0001));
+            vec2 explodeDir = normalize(vec2(cos(scatterAngle), sin(scatterAngle)) * 0.55 + radialDir * (0.65 + scatterSeed * 0.25));
+            vec2 tangentDir = vec2(-explodeDir.y, explodeDir.x);
+            float scatterPulse = 0.82 + 0.16 * sin(uTime * (1.0 + scatterSeed * 1.2) + scatterSeed * 6.2831);
+            float scatterForce = uScatter * uExplosionStrength * aExplosionRandom * (1.8 + scatterSeed * 2.0) * scatterPulse;
+            pos.xy += explodeDir * scatterForce + tangentDir * scatterForce * (scatterSeed - 0.5) * 0.28;
+
+            vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+            gl_Position = projectionMatrix * mvPosition;
+            gl_PointSize = uSize * uPixelRatio * (1.0 / -mvPosition.z) * (1.2 - normalizedRadius * 0.8);
+            vRadiusNorm = normalizedRadius;
+            vAlpha = 0.74 + aRandom * 0.44;
+        }
+    `,
+    fragment: `
+        varying float vRadiusNorm;
+        varying float vAlpha;
+
+        void main() {
+            float dist = length(gl_PointCoord - vec2(0.5));
+            if (dist > 0.5) discard;
+
+            vec3 c0 = vec3(1.0, 1.0, 1.0);
+            vec3 c1 = vec3(1.0, 0.92, 0.65);
+            vec3 c2 = vec3(1.0, 0.65, 0.3);
+            vec3 c3 = vec3(0.75, 0.35, 0.85);
+            vec3 c4 = vec3(0.35, 0.45, 1.0);
+            vec3 c5 = vec3(1.0, 0.45, 0.8);
+            vec3 c6 = vec3(0.2, 0.12, 0.3);
+
+            vec3 color;
+            float step = 1.0 / 6.0;
+
+            if (vRadiusNorm < step) {
+                color = mix(c0, c1, vRadiusNorm / step);
+            } else if (vRadiusNorm < step * 2.0) {
+                color = mix(c1, c2, (vRadiusNorm - step) / step);
+            } else if (vRadiusNorm < step * 3.0) {
+                color = mix(c2, c3, (vRadiusNorm - step * 2.0) / step);
+            } else if (vRadiusNorm < step * 4.0) {
+                color = mix(c3, c4, (vRadiusNorm - step * 3.0) / step);
+            } else if (vRadiusNorm < step * 5.0) {
+                color = mix(c4, c5, (vRadiusNorm - step * 4.0) / step);
+            } else {
+                color = mix(c5, c6, (vRadiusNorm - step * 5.0) / step);
+            }
+
+            float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
+            gl_FragColor = vec4(color, alpha * vAlpha * 0.98);
+        }
+    `
+};
+
+// 4. 尘埃层
+const dustNebulaShaders = {
+    vertex: `
+        attribute float aRadius;
+        attribute float aBaseAngle;
+        attribute float aArmIndex;
+        attribute float aRandom;
+        attribute vec3 aColor;
+        attribute float aExplosionRandom;
+
+        uniform float uTime;
+        uniform float uPixelRatio;
+        uniform float uSize;
+        uniform float uExplosionStart;
+        uniform float uExplosionStrength;
+        uniform float uScatter;
+
+        varying vec3 vColor;
+        varying float vAlpha;
+
+        void main() {
+            float angle = aBaseAngle + uTime * 0.10 * (0.45 + aRandom * 0.35);
+
+            float radius = aRadius + (aRandom - 0.5) * 6.0;
+            float angleOffset = (aRandom - 0.5) * 0.8;
+            float finalAngle = angle + angleOffset;
+
+            vec3 pos = vec3(
+                cos(finalAngle) * radius,
+                sin(finalAngle) * radius,
+                0.0
+            );
+
+            float scatterSeed = fract(sin(aRandom * 91.73 + aBaseAngle * 13.17) * 43758.5453);
+            float scatterAngle = atan(pos.y, pos.x) + (scatterSeed - 0.5) * 1.2 + sin(uTime * (0.7 + scatterSeed) + scatterSeed * 6.2831) * 0.22;
+            vec2 radialDir = normalize(pos.xy + vec2(0.0001));
+            vec2 explodeDir = normalize(vec2(cos(scatterAngle), sin(scatterAngle)) * 0.55 + radialDir * (0.65 + scatterSeed * 0.25));
+            vec2 tangentDir = vec2(-explodeDir.y, explodeDir.x);
+            float scatterPulse = 0.82 + 0.16 * sin(uTime * (1.0 + scatterSeed * 1.2) + scatterSeed * 6.2831);
+            float scatterForce = uScatter * uExplosionStrength * aExplosionRandom * (1.8 + scatterSeed * 2.0) * scatterPulse;
+            pos.xy += explodeDir * scatterForce + tangentDir * scatterForce * (scatterSeed - 0.5) * 0.28;
+
+            vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+            gl_Position = projectionMatrix * mvPosition;
+            gl_PointSize = uSize * uPixelRatio * (1.0 / -mvPosition.z);
+            vColor = aColor;
+            vAlpha = 0.38 + aRandom * 0.34;
+        }
+    `,
+    fragment: `
+        varying vec3 vColor;
+        varying float vAlpha;
+
+        void main() {
+            float dist = length(gl_PointCoord - vec2(0.5));
+            if (dist > 0.5) discard;
+
+            float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
+            gl_FragColor = vec4(vColor, alpha * vAlpha * 0.8);
+        }
+    `
+};
+
+// 5. 暗尘层
+const darkDustShaders = {
+    vertex: `
+        attribute float aRadius;
+        attribute float aBaseAngle;
+        attribute float aArmIndex;
+        attribute float aRandom;
+        attribute float aExplosionRandom;
+
+        uniform float uTime;
+        uniform float uPixelRatio;
+        uniform float uSize;
+        uniform float uExplosionStart;
+        uniform float uExplosionStrength;
+        uniform float uScatter;
+
+        varying float vAlpha;
+
+        void main() {
+            float angle = aBaseAngle + uTime * 0.11 * (0.5 + aRandom * 0.3);
+
+            float radius = aRadius + (aRandom - 0.5) * 2.5;
+            float angleOffset = (aRandom - 0.5) * 0.3;
+            float finalAngle = angle + angleOffset;
+
+            vec3 pos = vec3(
+                cos(finalAngle) * radius,
+                sin(finalAngle) * radius,
+                0.0
+            );
+
+            float scatterSeed = fract(sin(aRandom * 91.73 + aBaseAngle * 13.17) * 43758.5453);
+            float scatterAngle = atan(pos.y, pos.x) + (scatterSeed - 0.5) * 1.2 + sin(uTime * (0.7 + scatterSeed) + scatterSeed * 6.2831) * 0.22;
+            vec2 radialDir = normalize(pos.xy + vec2(0.0001));
+            vec2 explodeDir = normalize(vec2(cos(scatterAngle), sin(scatterAngle)) * 0.55 + radialDir * (0.65 + scatterSeed * 0.25));
+            vec2 tangentDir = vec2(-explodeDir.y, explodeDir.x);
+            float scatterPulse = 0.82 + 0.16 * sin(uTime * (1.0 + scatterSeed * 1.2) + scatterSeed * 6.2831);
+            float scatterForce = uScatter * uExplosionStrength * aExplosionRandom * (1.8 + scatterSeed * 2.0) * scatterPulse;
+            pos.xy += explodeDir * scatterForce + tangentDir * scatterForce * (scatterSeed - 0.5) * 0.28;
+
+            vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+            gl_Position = projectionMatrix * mvPosition;
+            gl_PointSize = uSize * uPixelRatio * (1.0 / -mvPosition.z);
+            vAlpha = 0.35 + aRandom * 0.35;
+        }
+    `,
+    fragment: `
+        uniform vec3 uColor;
+        varying float vAlpha;
+
+        void main() {
+            float dist = length(gl_PointCoord - vec2(0.5));
+            if (dist > 0.5) discard;
+
+            float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
+            gl_FragColor = vec4(uColor, alpha * vAlpha * 0.44);
+        }
+    `
+};
+
+// 6. 银心层
+const coreGlowShaders = {
+    vertex: `
+        attribute float aRandom;
+        attribute float aExplosionRandom;
+        attribute float aRadius;
+        attribute float aBaseAngle;
+
+        uniform float uTime;
+        uniform float uPixelRatio;
+        uniform float uSize;
+        uniform float uExplosionStart;
+        uniform float uExplosionStrength;
+        uniform float uScatter;
+
+        varying float vDistNorm;
+        varying float vAlpha;
+
+        void main() {
+            float angle = aBaseAngle + uTime * 0.04 * (0.8 + aRandom * 0.4);
+
+            vec3 pos = vec3(
+                cos(angle) * aRadius,
+                sin(angle) * aRadius,
+                0.0
+            );
+
+            float breathe = 1.0 + sin(uTime * 0.8) * 0.12;
+            pos.xy *= breathe;
+
+            float scatterSeed = fract(sin(aRandom * 91.73 + aBaseAngle * 13.17) * 43758.5453);
+            float scatterAngle = atan(pos.y, pos.x) + (scatterSeed - 0.5) * 1.2 + sin(uTime * (0.7 + scatterSeed) + scatterSeed * 6.2831) * 0.22;
+            vec2 radialDir = normalize(pos.xy + vec2(0.0001));
+            vec2 explodeDir = normalize(vec2(cos(scatterAngle), sin(scatterAngle)) * 0.55 + radialDir * (0.65 + scatterSeed * 0.25));
+            vec2 tangentDir = vec2(-explodeDir.y, explodeDir.x);
+            float scatterPulse = 0.82 + 0.16 * sin(uTime * (1.0 + scatterSeed * 1.2) + scatterSeed * 6.2831);
+            float scatterForce = uScatter * uExplosionStrength * aExplosionRandom * (1.8 + scatterSeed * 2.0) * scatterPulse;
+            pos.xy += explodeDir * scatterForce + tangentDir * scatterForce * (scatterSeed - 0.5) * 0.28;
+
+            vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+            gl_Position = projectionMatrix * mvPosition;
+            gl_PointSize = uSize * uPixelRatio * (1.0 / -mvPosition.z) * (1.0 + aRandom * 0.5);
+            vDistNorm = length(pos.xy) / 8.0;
+            vAlpha = 0.88 + aRandom * 0.32;
+        }
+    `,
+    fragment: `
+        varying float vDistNorm;
+        varying float vAlpha;
+
+        void main() {
+            float dist = length(gl_PointCoord - vec2(0.5));
+            if (dist > 0.5) discard;
+
+            vec3 color = mix(vec3(0.36, 0.44, 0.70), vec3(0.30, 0.18, 0.50), smoothstep(0.15, 0.85, vDistNorm));
+            float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
+
+            gl_FragColor = vec4(color, alpha * vAlpha * 1.07);
+        }
+    `
+};
+
+// 7. 亮星层
+const brightStarShaders = {
+    vertex: `
+        attribute float aRandom;
+        attribute vec3 aColor;
+        attribute float aExplosionRandom;
+        attribute float aRadius;
+        attribute float aBaseAngle;
+
+        uniform float uTime;
+        uniform float uPixelRatio;
+        uniform float uSize;
+        uniform float uExplosionStart;
+        uniform float uExplosionStrength;
+        uniform float uScatter;
+
+        varying vec3 vColor;
+        varying float vTwinkle;
+
+        void main() {
+            float angle = aBaseAngle + uTime * 0.07 * (0.5 + aRandom * 0.5);
+
+            vec3 pos = vec3(
+                cos(angle) * aRadius,
+                sin(angle) * aRadius,
+                0.0
+            );
+
+            float scatterSeed = fract(sin(aRandom * 91.73 + aBaseAngle * 13.17) * 43758.5453);
+            float scatterAngle = atan(pos.y, pos.x) + (scatterSeed - 0.5) * 1.2 + sin(uTime * (0.7 + scatterSeed) + scatterSeed * 6.2831) * 0.22;
+            vec2 radialDir = normalize(pos.xy + vec2(0.0001));
+            vec2 explodeDir = normalize(vec2(cos(scatterAngle), sin(scatterAngle)) * 0.55 + radialDir * (0.65 + scatterSeed * 0.25));
+            vec2 tangentDir = vec2(-explodeDir.y, explodeDir.x);
+            float scatterPulse = 0.82 + 0.16 * sin(uTime * (1.0 + scatterSeed * 1.2) + scatterSeed * 6.2831);
+            float scatterForce = uScatter * uExplosionStrength * aExplosionRandom * (1.8 + scatterSeed * 2.0) * scatterPulse;
+            pos.xy += explodeDir * scatterForce + tangentDir * scatterForce * (scatterSeed - 0.5) * 0.28;
+
+            vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+            gl_Position = projectionMatrix * mvPosition;
+            gl_PointSize = uSize * uPixelRatio * (1.0 / -mvPosition.z);
+            vColor = aColor;
+            vTwinkle = 0.92 + sin(uTime * (1.0 + aRandom * 2.5) + aRandom * 6.28) * 0.25;
+        }
+    `,
+    fragment: `
+        varying vec3 vColor;
+        varying float vTwinkle;
+
+        void main() {
+            vec2 uv = gl_PointCoord - vec2(0.5);
+
+            float horizontal = exp(-pow(uv.y * 8.0, 2.0));
+            float vertical = exp(-pow(uv.x * 8.0, 2.0));
+            float crossGlow = horizontal + vertical;
+            float center = 1.0 - smoothstep(0.0, 0.15, length(uv));
+
+            float intensity = (crossGlow * 0.6 + center) * vTwinkle;
+            gl_FragColor = vec4(vColor, intensity * 1.07);
+        }
+    `
+};
+
+// ===================== 粒子生成 =====================
+function generateExplosionRandom(count) {
+    const arr = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+        arr[i] = 0.6 + Math.random() * 0.9;
+    }
+    return arr;
+}
+
+function createStarCloud() {
+    const count = 16250;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    const randoms = new Float32Array(count);
+    const explosionRandom = generateExplosionRandom(count);
+    const baseAngles = new Float32Array(count);
+    const radii = new Float32Array(count);
+
+    for (let i = 0; i < count; i++) {
+        radii[i] = 35 + Math.random() * 25;
+        baseAngles[i] = Math.random() * Math.PI * 2;
+        randoms[i] = Math.random();
+        positions[i * 3] = 0;
+        positions[i * 3 + 1] = 0;
+        positions[i * 3 + 2] = 0;
+    }
+
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute("aRandom", new THREE.BufferAttribute(randoms, 1));
+    geometry.setAttribute("aExplosionRandom", new THREE.BufferAttribute(explosionRandom, 1));
+    geometry.setAttribute("aBaseAngle", new THREE.BufferAttribute(baseAngles, 1));
+    geometry.setAttribute("aRadius", new THREE.BufferAttribute(radii, 1));
+
+    const material = new THREE.ShaderMaterial({
+        vertexShader: starCloudShaders.vertex,
+        fragmentShader: starCloudShaders.fragment,
+        uniforms: {
+            uTime: { value: 0 },
+            uPixelRatio: { value: renderer.getPixelRatio() },
+            uSize: { value: 216.0 },
+            uColor: { value: new THREE.Color(0x111A36) },
+            uExplosionStart: { value: -10 },
+            uExplosionStrength: { value: 18 },
+            uScatter: { value: 0 },
+        },
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+
+    return new THREE.Points(geometry, material);
+}
+
+function createGalacticHalo() {
+    const count = 10500;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    const radii = new Float32Array(count);
+    const baseAngles = new Float32Array(count);
+    const armIndices = new Float32Array(count);
+    const randoms = new Float32Array(count);
+    const explosionRandom = generateExplosionRandom(count);
+
+    for (let i = 0; i < count; i++) {
+        radii[i] = Math.pow(Math.random(), 0.8) * 45;
+        baseAngles[i] = Math.random() * Math.PI * 2;
+        armIndices[i] = Math.floor(Math.random() * 4);
+        randoms[i] = Math.random();
+        positions[i * 3] = 0;
+        positions[i * 3 + 1] = 0;
+        positions[i * 3 + 2] = 0;
+    }
+
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute("aRadius", new THREE.BufferAttribute(radii, 1));
+    geometry.setAttribute("aBaseAngle", new THREE.BufferAttribute(baseAngles, 1));
+    geometry.setAttribute("aArmIndex", new THREE.BufferAttribute(armIndices, 1));
+    geometry.setAttribute("aRandom", new THREE.BufferAttribute(randoms, 1));
+    geometry.setAttribute("aExplosionRandom", new THREE.BufferAttribute(explosionRandom, 1));
+
+    const material = new THREE.ShaderMaterial({
+        vertexShader: galacticHaloShaders.vertex,
+        fragmentShader: galacticHaloShaders.fragment,
+        uniforms: {
+            uTime: { value: 0 },
+            uPixelRatio: { value: renderer.getPixelRatio() },
+            uSize: { value: 288.0 },
+            uExplosionStart: { value: -10 },
+            uExplosionStrength: { value: 16 },
+            uScatter: { value: 0 },
+        },
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+
+    return new THREE.Points(geometry, material);
+}
+
+function createGalaxySystem() {
+    const count = 52500;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    const radii = new Float32Array(count);
+    const baseAngles = new Float32Array(count);
+    const armIndices = new Float32Array(count);
+    const randoms = new Float32Array(count);
+    const explosionRandom = generateExplosionRandom(count);
+
+    for (let i = 0; i < count; i++) {
+        radii[i] = Math.pow(Math.random(), 1.3) * 40;
+        baseAngles[i] = Math.random() * Math.PI * 2;
+        armIndices[i] = Math.floor(Math.random() * 4);
+        randoms[i] = Math.random();
+        positions[i * 3] = 0;
+        positions[i * 3 + 1] = 0;
+        positions[i * 3 + 2] = 0;
+    }
+
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute("aRadius", new THREE.BufferAttribute(radii, 1));
+    geometry.setAttribute("aBaseAngle", new THREE.BufferAttribute(baseAngles, 1));
+    geometry.setAttribute("aArmIndex", new THREE.BufferAttribute(armIndices, 1));
+    geometry.setAttribute("aRandom", new THREE.BufferAttribute(randoms, 1));
+    geometry.setAttribute("aExplosionRandom", new THREE.BufferAttribute(explosionRandom, 1));
+
+    const material = new THREE.ShaderMaterial({
+        vertexShader: galaxySystemShaders.vertex,
+        fragmentShader: galaxySystemShaders.fragment,
+        uniforms: {
+            uTime: { value: 0 },
+            uPixelRatio: { value: renderer.getPixelRatio() },
+            uSize: { value: 261.0 },
+            uExplosionStart: { value: -10 },
+            uExplosionStrength: { value: 14 },
+            uScatter: { value: 0 },
+        },
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+
+    return new THREE.Points(geometry, material);
+}
+
+function createDustNebula() {
+    const count = 23750;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    const radii = new Float32Array(count);
+    const baseAngles = new Float32Array(count);
+    const armIndices = new Float32Array(count);
+    const randoms = new Float32Array(count);
+    const colors = new Float32Array(count * 3);
+    const explosionRandom = generateExplosionRandom(count);
+
+    const colorPool = [
+        new THREE.Color(0.12, 0.04, 0.34),
+        new THREE.Color(0.07, 0.15, 0.42),
+        new THREE.Color(0.26, 0.30, 0.48),
+        new THREE.Color(0.05, 0.24, 0.40),
+        new THREE.Color(0.30, 0.20, 0.08)
+    ];
+
+    for (let i = 0; i < count; i++) {
+        const i3 = i * 3;
+        radii[i] = Math.pow(Math.random(), 0.9) * 42;
+        baseAngles[i] = Math.random() * Math.PI * 2;
+        armIndices[i] = Math.floor(Math.random() * 4);
+        randoms[i] = Math.random();
+
+        const color = colorPool[Math.floor(Math.random() * colorPool.length)];
+        colors[i3] = color.r;
+        colors[i3 + 1] = color.g;
+        colors[i3 + 2] = color.b;
+
+        positions[i3] = 0;
+        positions[i3 + 1] = 0;
+        positions[i3 + 2] = 0;
+    }
+
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute("aRadius", new THREE.BufferAttribute(radii, 1));
+    geometry.setAttribute("aBaseAngle", new THREE.BufferAttribute(baseAngles, 1));
+    geometry.setAttribute("aArmIndex", new THREE.BufferAttribute(armIndices, 1));
+    geometry.setAttribute("aRandom", new THREE.BufferAttribute(randoms, 1));
+    geometry.setAttribute("aColor", new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute("aExplosionRandom", new THREE.BufferAttribute(explosionRandom, 1));
+
+    const material = new THREE.ShaderMaterial({
+        vertexShader: dustNebulaShaders.vertex,
+        fragmentShader: dustNebulaShaders.fragment,
+        uniforms: {
+            uTime: { value: 0 },
+            uPixelRatio: { value: renderer.getPixelRatio() },
+            uSize: { value: 360.0 },
+            uExplosionStart: { value: -10 },
+            uExplosionStrength: { value: 15 },
+            uScatter: { value: 0 },
+        },
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+
+    return new THREE.Points(geometry, material);
+}
+
+function createDarkDust() {
+    const count = 7000;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    const radii = new Float32Array(count);
+    const baseAngles = new Float32Array(count);
+    const armIndices = new Float32Array(count);
+    const randoms = new Float32Array(count);
+    const explosionRandom = generateExplosionRandom(count);
+
+    for (let i = 0; i < count; i++) {
+        radii[i] = Math.pow(Math.random(), 1.1) * 38;
+        baseAngles[i] = Math.random() * Math.PI * 2;
+        armIndices[i] = Math.floor(Math.random() * 4);
+        randoms[i] = Math.random();
+        positions[i * 3] = 0;
+        positions[i * 3 + 1] = 0;
+        positions[i * 3 + 2] = 0;
+    }
+
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute("aRadius", new THREE.BufferAttribute(radii, 1));
+    geometry.setAttribute("aBaseAngle", new THREE.BufferAttribute(baseAngles, 1));
+    geometry.setAttribute("aArmIndex", new THREE.BufferAttribute(armIndices, 1));
+    geometry.setAttribute("aRandom", new THREE.BufferAttribute(randoms, 1));
+    geometry.setAttribute("aExplosionRandom", new THREE.BufferAttribute(explosionRandom, 1));
+
+    const material = new THREE.ShaderMaterial({
+        vertexShader: darkDustShaders.vertex,
+        fragmentShader: darkDustShaders.fragment,
+        uniforms: {
+            uTime: { value: 0 },
+            uPixelRatio: { value: renderer.getPixelRatio() },
+            uSize: { value: 396.0 },
+            uColor: { value: new THREE.Color(0x050508) },
+            uExplosionStart: { value: -10 },
+            uExplosionStrength: { value: 12 },
+            uScatter: { value: 0 },
+        },
+        transparent: true,
+        blending: THREE.NormalBlending,
+        depthWrite: false
+    });
+
+    return new THREE.Points(geometry, material);
+}
+
+function createCoreGlow() {
+    const count = 4500;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    const randoms = new Float32Array(count);
+    const explosionRandom = generateExplosionRandom(count);
+    const baseAngles = new Float32Array(count);
+    const radii = new Float32Array(count);
+
+    for (let i = 0; i < count; i++) {
+        radii[i] = Math.pow(Math.random(), 2.0) * 8;
+        baseAngles[i] = Math.random() * Math.PI * 2;
+        randoms[i] = Math.random();
+        positions[i * 3] = 0;
+        positions[i * 3 + 1] = 0;
+        positions[i * 3 + 2] = 0;
+    }
+
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute("aRandom", new THREE.BufferAttribute(randoms, 1));
+    geometry.setAttribute("aExplosionRandom", new THREE.BufferAttribute(explosionRandom, 1));
+    geometry.setAttribute("aBaseAngle", new THREE.BufferAttribute(baseAngles, 1));
+    geometry.setAttribute("aRadius", new THREE.BufferAttribute(radii, 1));
+
+    const material = new THREE.ShaderMaterial({
+        vertexShader: coreGlowShaders.vertex,
+        fragmentShader: coreGlowShaders.fragment,
+        uniforms: {
+            uTime: { value: 0 },
+            uPixelRatio: { value: renderer.getPixelRatio() },
+            uSize: { value: 427.5 },
+            uExplosionStart: { value: -10 },
+            uExplosionStrength: { value: 5 },
+            uScatter: { value: 0 },
+        },
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+
+    return new THREE.Points(geometry, material);
+}
+
+function createBrightStarField() {
+    const count = 400;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    const randoms = new Float32Array(count);
+    const colors = new Float32Array(count * 3);
+    const explosionRandom = generateExplosionRandom(count);
+    const baseAngles = new Float32Array(count);
+    const radii = new Float32Array(count);
+
+    const colorPool = [
+        new THREE.Color(0.34, 0.42, 0.66),
+        new THREE.Color(0.16, 0.25, 0.58),
+        new THREE.Color(0.23, 0.12, 0.52),
+        new THREE.Color(0.36, 0.27, 0.10)
+    ];
+
+    for (let i = 0; i < count; i++) {
+        const i3 = i * 3;
+        radii[i] = 30 + Math.random() * 40;
+        baseAngles[i] = Math.random() * Math.PI * 2;
+        randoms[i] = Math.random();
+
+        const color = colorPool[Math.floor(Math.random() * colorPool.length)];
+        colors[i3] = color.r;
+        colors[i3 + 1] = color.g;
+        colors[i3 + 2] = color.b;
+
+        positions[i3] = 0;
+        positions[i3 + 1] = 0;
+        positions[i3 + 2] = 0;
+    }
+
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute("aRandom", new THREE.BufferAttribute(randoms, 1));
+    geometry.setAttribute("aColor", new THREE.BufferAttribute(colors, 3));
+    geometry.setAttribute("aExplosionRandom", new THREE.BufferAttribute(explosionRandom, 1));
+    geometry.setAttribute("aBaseAngle", new THREE.BufferAttribute(baseAngles, 1));
+    geometry.setAttribute("aRadius", new THREE.BufferAttribute(radii, 1));
+
+    const material = new THREE.ShaderMaterial({
+        vertexShader: brightStarShaders.vertex,
+        fragmentShader: brightStarShaders.fragment,
+        uniforms: {
+            uTime: { value: 0 },
+            uPixelRatio: { value: renderer.getPixelRatio() },
+            uSize: { value: 1890.0 },
+            uExplosionStart: { value: -10 },
+            uExplosionStrength: { value: 22 },
+            uScatter: { value: 0 },
+        },
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+
+    return new THREE.Points(geometry, material);
+}
+
+// ===================== 组装 =====================
+galaxyGroup.add(createStarCloud());
+galaxyGroup.add(createGalacticHalo());
+galaxyGroup.add(createDustNebula());
+galaxyGroup.add(createGalaxySystem());
+galaxyGroup.add(createDarkDust());
+galaxyGroup.add(createCoreGlow());
+galaxyGroup.add(createBrightStarField());
+
+const allMaterials = [];
+galaxyGroup.traverse(child => {
+    if (child.isPoints && child.material.isShaderMaterial) {
+        allMaterials.push(child.material);
+    }
+});
+
+// ===================== 点击散开后缓慢回聚 =====================
+const clock = new THREE.Clock();
+let targetScatter = 0;
+let scatterValue = 0;
+let gatherTimeout = null;
+document.getElementById("three-bg").addEventListener("click", () => {
+    targetScatter = 1;
+    if (gatherTimeout) clearTimeout(gatherTimeout);
+    gatherTimeout = setTimeout(() => { targetScatter = 0; }, 850);
+});
+
+// ===================== 动画循环（无鼠标跟随） =====================
+function animate() {
+    requestAnimationFrame(animate);
+    const elapsedTime = clock.getElapsedTime();
+
+    scatterValue += (targetScatter - scatterValue) * 0.12;
+    allMaterials.forEach(mat => {
+        mat.uniforms.uTime.value = elapsedTime;
+        if (mat.uniforms.uScatter) mat.uniforms.uScatter.value = scatterValue;
+    });
+
+    // 仅保留极轻微的X轴正弦漂浮，增加呼吸感
+    camera.position.x = Math.sin(elapsedTime * 0.12) * 3;
+    camera.lookAt(0, 0, 0);
+
+    renderer.render(scene, camera);
+}
+animate();
+
+})();
+
+function showMsg(text, type) {
+    var box = document.getElementById('msg');
+    box.textContent = text;
+    box.className = 'msg-box ' + type;
+    box.style.display = 'block';
+}
+function hideMsg() {
+    document.getElementById('msg').style.display = 'none';
+}
+
+function switchTab(tab) {
+    var btns = document.querySelectorAll('.tab-btn');
+    btns.forEach(function(btn) { btn.classList.remove('active'); });
+    var loginForm = document.getElementById('login-form');
+    var regForm = document.getElementById('register-form');
+    if (!loginForm || !regForm) return; // 注册后 DOM 已替换
+    if (tab === 'login') {
+        if (btns[0]) btns[0].classList.add('active');
+        loginForm.style.display = '';
+        regForm.style.display = 'none';
+    } else {
+        if (btns[1]) btns[1].classList.add('active');
+        loginForm.style.display = 'none';
+        regForm.style.display = '';
+    }
+    hideMsg();
+}
+
+function showForgot() {
+    document.getElementById('auth-tabs').style.display = 'none';
+    document.getElementById('forgot-section').classList.add('active');
+    hideMsg();
+}
+function showAuth() {
+    document.getElementById('auth-tabs').style.display = '';
+    document.getElementById('forgot-section').classList.remove('active');
+    hideMsg();
+}
+
+// 显示带重发按钮的验证提示
+function showVerifyPrompt(email) {
+    var box = document.getElementById('msg');
+    box.innerHTML = '邮箱未验证。<button id="resend-inline-btn" style="background:none;border:none;color:var(--cyan-accent);cursor:pointer;text-decoration:underline;font-size:0.85rem;">重新发送验证邮件</button>';
+    box.className = 'msg-box error';
+    box.style.display = 'block';
+    var btn = document.getElementById('resend-inline-btn');
+    btn.onclick = function() {
+        var self = this;
+        self.disabled = true;
+        self.textContent = '发送中…';
+        Auth.resendVerify(email).then(function(result) {
+            box.innerHTML = '验证邮件已发送，请检查收件箱。';
+            runInlineCooldown(email);
+        }).catch(function(err) {
+            if (err.cause && err.cause.status === 429) {
+                self.textContent = '重新发送验证邮件';
+                runInlineCooldown(email);
+            } else {
+                box.innerHTML = '发送失败：' + err.message;
+            }
+        });
+    };
+    // 页面加载时检查冷却
+    Auth.checkEmailCooldown(email, 'verify').then(function(remaining) {
+        if (remaining > 0) runInlineCooldown(email);
+    });
+}
+
+function runInlineCooldown(email) {
+    var box = document.getElementById('msg');
+    Auth.checkEmailCooldown(email, 'verify').then(function(remaining) {
+        if (remaining <= 0) {
+            box.innerHTML = '邮箱未验证。<button id="resend-inline-btn" style="background:none;border:none;color:var(--cyan-accent);cursor:pointer;text-decoration:underline;font-size:0.85rem;">重新发送验证邮件</button>';
+            var btn = document.getElementById('resend-inline-btn');
+            btn.onclick = function() {
+                var self = this;
+                self.disabled = true;
+                self.textContent = '发送中…';
+                Auth.resendVerify(email).then(function() {
+                    box.innerHTML = '验证邮件已发送，请检查收件箱。';
+                    runInlineCooldown(email);
+                }).catch(function(err) {
+                    if (err.cause && err.cause.status === 429) {
+                        self.textContent = '重新发送验证邮件';
+                        runInlineCooldown(email);
+                    } else {
+                        box.innerHTML = '发送失败：' + err.message;
+                    }
+                });
+            };
+            return;
+        }
+        var left = remaining;
+        box.innerHTML = '邮箱未验证。<span style="color:var(--text-gold);font-size:0.85rem;">重新发送验证邮件（' + left + 's）</span>';
+        var timer = setInterval(function() {
+            left--;
+            if (left <= 0) {
+                clearInterval(timer);
+                box.innerHTML = '邮箱未验证。<button id="resend-inline-btn" style="background:none;border:none;color:var(--cyan-accent);cursor:pointer;text-decoration:underline;font-size:0.85rem;">重新发送验证邮件</button>';
+                var btn = document.getElementById('resend-inline-btn');
+                btn.onclick = function() {
+                    var self = this;
+                    self.disabled = true;
+                    self.textContent = '发送中…';
+                    Auth.resendVerify(email).then(function() {
+                        box.innerHTML = '验证邮件已发送，请检查收件箱。';
+                        runInlineCooldown(email);
+                    }).catch(function(err) {
+                        if (err.cause && err.cause.status === 429) {
+                            self.textContent = '重新发送验证邮件';
+                            runInlineCooldown(email);
+                        } else {
+                            box.innerHTML = '发送失败：' + err.message;
+                        }
+                    });
+                };
+            } else {
+                box.innerHTML = '邮箱未验证。<span style="color:var(--text-gold);font-size:0.85rem;">重新发送验证邮件（' + left + 's）</span>';
+            }
+        }, 1000);
+    });
+}
+
+async function handleLogin(e) {
+    e.preventDefault();
+    hideMsg();
+    var btn = document.getElementById('login-btn');
+    btn.disabled = true; btn.textContent = '登录中…';
+    try {
+        var login = document.getElementById('login-email').value;
+        var password = document.getElementById('login-password').value;
+        await Auth.login(login, password);
+        var params = new URLSearchParams(window.location.search);
+        var redirect = params.get('redirect') || 'index.html';
+        window.location.href = redirect;
+    } catch (err) {
+        if (err.cause && err.cause.code === 'NOT_VERIFIED') {
+            showVerifyPrompt(err.cause.email);
+        } else if (err.cause && err.cause.status === 429 && err.cause.lockout) {
+            showLoginLockout(err.cause.lockoutEnds);
+        } else {
+            showMsg(err.message, 'error');
+        }
+        btn.disabled = false; btn.textContent = '登 录';
+    }
+}
+
+function showLoginLockout(lockoutEnds) {
+    var box = document.getElementById('msg');
+    var left = Math.ceil((lockoutEnds - Date.now()) / 1000);
+    box.className = 'msg-box error';
+    box.style.display = 'block';
+    var timer = setInterval(function() {
+        left--;
+        if (left <= 0) {
+            clearInterval(timer);
+            box.style.display = 'none';
+            return;
+        }
+        var m = Math.floor(left / 60);
+        var s = left % 60;
+        box.textContent = '登录尝试过多，请 ' + (m > 0 ? m + '分' : '') + s + '秒 后重试';
+    }, 1000);
+    var m = Math.floor(left / 60);
+    var s = left % 60;
+    box.textContent = '登录尝试过多，请 ' + (m > 0 ? m + '分' : '') + s + '秒 后重试';
+}
+
+async function handleRegister(e) {
+    e.preventDefault();
+    hideMsg();
+    var btn = document.getElementById('reg-btn');
+    btn.disabled = true; btn.textContent = '注册中…';
+    try {
+        var email = document.getElementById('reg-email').value;
+        var password = document.getElementById('reg-password').value;
+        var username = document.getElementById('reg-username').value;
+        var result = await Auth.register(email, password, username);
+        // 显示验证邮箱提示
+        var safeEmail = email.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        var rawEmail = email;
+        var authTabs = document.getElementById('auth-tabs');
+        authTabs.innerHTML = '<div style="text-align:center;padding:2rem 0">' +
+            '<h2 style="color:var(--brass-light);font-size:1.6rem;letter-spacing:4px;margin-bottom:0.3rem">验证你的邮箱</h2>' +
+            '<p style="color:#555;font-size:0.7rem;letter-spacing:6px;text-transform:uppercase;margin-bottom:1.5rem">Verify Your Email</p>' +
+            '<p style="color:var(--text-gold);font-size:0.9rem;line-height:1.6;margin-bottom:1.2rem">我们已向 <strong style="color:var(--brass-light)">' + safeEmail + '</strong> 发送了一封验证邮件</p>' +
+            '<p style="color:#71717a;font-size:0.8rem;line-height:1.6;margin-bottom:1.5rem">请点击邮件中的链接完成验证，然后返回登录</p>' +
+            '<button class="submit-btn" onclick="location.reload()" style="margin-bottom:0.8rem">我已验证，去登录</button>' +
+            '<button class="submit-btn" id="reg-resend-btn" onclick="resendVerifyEmail(\'' + safeEmail + '\')" style="margin-bottom:0.8rem;background:transparent;border:1px solid rgba(214,168,67,0.3);color:var(--text-gold)">重发验证邮件</button>' +
+            '<p id="resend-status" style="color:#555;font-size:0.75rem">没收到？请检查垃圾邮件文件夹</p>' +
+            '</div>';
+        // 检查冷却
+        startCooldown('reg-resend-btn', rawEmail, 'verify');
+    } catch (err) {
+        showMsg(err.message, 'error');
+        btn.disabled = false; btn.textContent = '注 册';
+    }
+}
+
+// 全局倒计时管理
+function startCooldown(btnId, email, type) {
+    var btn = document.getElementById(btnId);
+    if (!btn) return;
+    Auth.checkEmailCooldown(email, type).then(function(remaining) {
+        if (remaining > 0) runCooldown(btn, remaining);
+    });
+}
+
+function runCooldown(btn, seconds) {
+    btn.disabled = true;
+    var orig = btn.textContent;
+    var left = seconds;
+    btn.textContent = orig + '（' + left + 's）';
+    var timer = setInterval(function() {
+        left--;
+        if (left <= 0) {
+            clearInterval(timer);
+            btn.disabled = false;
+            btn.textContent = orig;
+        } else {
+            btn.textContent = orig + '（' + left + 's）';
+        }
+    }, 1000);
+}
+
+async function resendVerifyEmail(email) {
+    var status = document.getElementById('resend-status');
+    var btn = document.getElementById('reg-resend-btn');
+    status.textContent = '发送中…'; status.style.color = '#555';
+    try {
+        var result = await Auth.resendVerify(email);
+        status.textContent = '验证邮件已重新发送'; status.style.color = '#22c55e';
+        if (result.cooldown) runCooldown(btn, result.cooldown);
+        else runCooldown(btn, 60);
+    } catch (err) {
+        status.textContent = err.message; status.style.color = '#f87171';
+        if (err.cause && err.cause.status === 429) {
+            var cd = await Auth.checkEmailCooldown(email, 'verify');
+            if (cd > 0) runCooldown(btn, cd);
+        }
+    }
+}
+
+async function handleForgot(e) {
+    e.preventDefault();
+    hideMsg();
+    var btn = document.getElementById('forgot-btn');
+    var email = document.getElementById('forgot-email').value;
+    btn.disabled = true; btn.textContent = '发送中…';
+    try {
+        var result = await Auth.forgotPassword(email);
+        showMsg(result.message, 'success');
+        runCooldown(btn, 60);
+    } catch (err) {
+        showMsg(err.message, 'error');
+        btn.disabled = false; btn.textContent = '发送重置链接';
+        if (err.cause && err.cause.status === 429) {
+            var cd = await Auth.checkEmailCooldown(email, 'reset');
+            if (cd > 0) runCooldown(btn, cd);
+        }
+    }
+}
+
+// 如果已登录，跳转
+if (Auth.isLoggedIn()) {
+    var params = new URLSearchParams(window.location.search);
+    var redirect = params.get('redirect') || 'index.html';
+    window.location.href = redirect;
+}
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

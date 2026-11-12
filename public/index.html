@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>塔罗之主 - 璀璨银河系</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://lib.baomitu.com/three.js/0.160.0/three.min.js"></script>
+    <!-- 手势识别（使用 @mediapipe/tasks-vision，按需动态加载） -->
+    <script src="js/gesture.js"></script>
+    <style>
+        :root {
+            --void-black: #000001;
+            --brass-gold: #FFD26A;
+            --brass-gold-dark: #D4A843;
+            --brass-light: #FFF8E7;
+            --brass-gold-light: #F0D68A;
+            --hyper-blue: #38BDF8;
+            --mystic-purple: #7C3AED;
+            --mystic-purple2: #A78BFA;
+            --cyan-accent: #20D0C0;
+            --card-bg: #F5E6C8;
+            --text-gold: #E8D5A3;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background: var(--void-black); font-family: "Georgia", serif, system-ui; color: #fff; }
+
+        /* ===== 序章：银河容器 ===== */
+        #canvas-container { position: absolute; top: -2%; left: -2%; width: 104%; height: 104%; z-index: 1; transition: transform 3.5s cubic-bezier(0.1, 1, 0.1, 1); will-change: transform; }
+        #hubble-lens {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none;
+            background: radial-gradient(circle at 50% 50%, transparent 28%, rgba(0,0,1,0.18) 58%, rgba(0,0,1,0.85) 100%);
+        }
+
+        /* ===== 序章 UI ===== */
+        .intro-ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .fade-panel {
+            opacity: 0; transform: scale(0.96) translateY(25px);
+            transition: opacity 1.8s cubic-bezier(0.2, 1, 0.2, 1), transform 1.8s cubic-bezier(0.2, 1, 0.2, 1);
+            pointer-events: none; text-align: center; width: 100%; max-width: 900px; padding: 2rem;
+            position: absolute;
+        }
+        .fade-panel.active { opacity: 1; transform: scale(1) translateY(0); pointer-events: auto; }
+        .fade-panel.exit { opacity: 0; transform: scale(1.04) translateY(-25px); pointer-events: none; }
+
+        .cosmic-title { font-family: 'Cinzel', Georgia, serif; font-size: 4.2rem; font-weight: 600; letter-spacing: 0.4rem; color: var(--brass-light); text-shadow: 0 0 40px rgba(255,248,231,0.5), 0 0 80px rgba(56,189,248,0.3); margin-bottom: 1rem; white-space: nowrap; }
+        .cosmic-subtitle { font-size: 0.8rem; font-family: monospace; letter-spacing: 10px; color: var(--hyper-blue); text-transform: uppercase; margin-bottom: 4rem; text-shadow: 0 0 20px rgba(56,189,248,0.5); }
+
+        .input-wrapper { position: relative; width: 100%; max-width: 460px; margin: 0 auto; }
+        .whisper-input {
+            width: 100%; background: rgba(2,2,8,0.5); border: 1px solid rgba(255,210,106,0.3); border-radius: 30px;
+            padding: 1.4rem 2.5rem; color: #fff; font-size: 1.15rem; text-align: center; outline: none;
+            backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            box-shadow: 0 0 50px rgba(56,189,248,0.08), inset 0 0 20px rgba(255,255,255,0.03);
+            transition: all 0.5s ease;
+        }
+        .whisper-input:focus { border-color: #fff; box-shadow: 0 0 50px rgba(255,210,106,0.4); background: rgba(5,5,20,0.75); }
+        .whisper-input::placeholder { color: #3f3f46; letter-spacing: 2px; }
+
+        .ritual-btn {
+            background: none; border: 1px solid var(--brass-gold); color: var(--brass-light);
+            padding: 0.9rem 3.5rem; border-radius: 25px; font-size: 1.05rem; letter-spacing: 6px;
+            cursor: pointer; margin-top: 3.5rem; opacity: 0; transform: scale(0.9);
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); pointer-events: none;
+        }
+        .whisper-input:not(:placeholder-shown) ~ .ritual-btn,
+        .whisper-input:focus ~ .ritual-btn { opacity: 1; transform: scale(1); pointer-events: auto; }
+        .ritual-btn:hover { background: #fff; color: #000; box-shadow: 0 0 40px #fff; border-color: #fff; }
+
+        .spread-cluster { display: flex; gap: 1.8rem; justify-content: center; width: 100%; margin-top: 1rem; }
+        .spread-node {
+            background: linear-gradient(180deg, rgba(16,10,42,0.78), rgba(2,2,12,0.72));
+            border: 1px solid rgba(240,214,138,0.18); border-radius: 18px;
+            padding: 2.4rem 1.3rem 2rem; width: 190px; cursor: pointer; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+            transition: transform 0.45s cubic-bezier(0.2, 1, 0.2, 1), border-color 0.35s, box-shadow 0.35s, background 0.35s;
+            position: relative; overflow: hidden;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 18px 45px rgba(0,0,0,0.35);
+        }
+        .spread-node::before {
+            content: ''; position: absolute; inset: 10px; border-radius: 14px;
+            border: 1px solid rgba(56,189,248,0.14); pointer-events: none;
+        }
+        .spread-node::after {
+            content: ''; position: absolute; top: -45%; left: 18%; width: 64%; height: 90%;
+            background: radial-gradient(circle, rgba(56,189,248,0.3), rgba(167,139,250,0.12) 38%, transparent 68%);
+            opacity: 0.58; pointer-events: none; transform: rotate(-18deg);
+        }
+        .spread-node:hover {
+            border-color: rgba(240,214,138,0.65); transform: translateY(-12px) scale(1.02);
+            background: linear-gradient(180deg, rgba(30,18,72,0.82), rgba(4,4,18,0.78));
+            box-shadow: 0 24px 60px rgba(56,189,248,0.2), 0 0 38px rgba(240,214,138,0.12), inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+        .node-title { position: relative; z-index: 1; font-size: 1.25rem; color: var(--brass-light); font-weight: 400; margin-bottom: 0.8rem; letter-spacing: 2px; text-shadow: 0 0 18px rgba(240,214,138,0.35); }
+        .node-desc { position: relative; z-index: 1; font-size: 0.72rem; color: #a5b4fc; font-family: monospace; line-height: 1.7; letter-spacing: 0.05rem; }
+
+        #hyper-drive-mask {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 100;
+            background: #fff; opacity: 0; pointer-events: none; transition: opacity 1.2s cubic-bezier(0.7, 0, 0.3, 1);
+        }
+
+        /* ===== 功能介绍弹窗 ===== */
+        .welcome-overlay {
+            position: fixed; inset: 0; z-index: 999;
+            background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
+            display: flex; align-items: center; justify-content: center;
+            opacity: 1; transition: opacity 0.5s ease;
+        }
+        .welcome-overlay.hidden { opacity: 0; pointer-events: none; }
+        .welcome-card {
+            background: url('gmzz.png') center/cover no-repeat;
+            background-color: rgba(15,10,30,0.45);
+            background-blend-mode: soft-light;
+            border: 1px solid rgba(212,168,67,0.3); border-radius: 20px;
+            padding: 40px 36px; max-width: 560px; width: 90%; position: relative;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.6), 0 0 40px rgba(124,58,237,0.15);
+            text-align: center;
+        }
+        .welcome-close {
+            position: absolute; top: 14px; left: 18px;
+            background: none; border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.6);
+            width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
+            font-size: 1.1rem; display: flex; align-items: center; justify-content: center;
+            transition: all 0.3s;
+        }
+        .welcome-close:hover { color: #fff; border-color: #fff; background: rgba(255,255,255,0.1); }
+        .welcome-card h2 { font-family: 'Cinzel', Georgia, serif; font-size: 1.6rem; color: #FFD26A; margin-bottom: 6px; }
+        .welcome-card .tagline { font-size: 0.7rem; font-family: monospace; color: #A78BFA; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 28px; }
+        .welcome-features { display: flex; flex-direction: column; gap: 14px; text-align: left; margin-bottom: 28px; }
+        .welcome-feature { display: flex; gap: 14px; align-items: flex-start; }
+        .welcome-feature .icon { font-size: 1.4rem; flex-shrink: 0; width: 36px; text-align: center; }
+        .welcome-feature .text h4 { color: #e2e8f0; font-size: 0.9rem; margin-bottom: 2px; }
+        .welcome-feature .text p { color: #8892b0; font-size: 0.78rem; line-height: 1.5; }
+        .welcome-start {
+            background: linear-gradient(135deg, #4a3319, #241403);
+            border: 1px solid #D4A843; color: #FFF8E7;
+            padding: 12px 40px; border-radius: 25px; font-size: 1rem;
+            font-weight: 600; cursor: pointer; letter-spacing: 2px;
+            transition: all 0.3s;
+        }
+        .welcome-start:hover { background: #fff; color: #000; border-color: #fff; box-shadow: 0 0 35px rgba(255,255,255,0.5); }
+        @media (max-width: 480px) { .welcome-card { padding: 28px 20px; } .welcome-card h2 { font-size: 1.3rem; } }
+
+        /* ===== 塔罗牌：UI 全局容器 ===== */
+        #tarot-ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10;
+            display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
+            padding: 2.2rem 2rem; opacity: 0; pointer-events: none;
+            transition: opacity 2s ease-out;
+        }
+        #tarot-ui-layer.visible { opacity: 1; pointer-events: auto; }
+        #tarot-ui-layer header { text-align: center; margin-top: 0.6rem; }
+        #tarot-ui-layer h1 {
+            font-family: "Georgia", serif; color: var(--text-gold); font-size: 2.5rem;
+            letter-spacing: 0.3rem; text-shadow: 0 0 15px rgba(212,168,67,0.6); margin-bottom: 0.5rem;
+        }
+        #tarot-spread-label {
+            margin-top: 0.85rem; color: var(--cyan-accent); font-family: "Space Mono", monospace;
+            font-size: 0.78rem; letter-spacing: 0.16rem; text-shadow: 0 0 18px rgba(32,208,192,0.35);
+        }
+
+        /* ===== 手势开关 ===== */
+        #gesture-toggle {
+            position: fixed; top: 20px; left: 24px; z-index: 210;
+            background: rgba(10,5,25,0.7); border: 1px solid rgba(240,214,138,0.3); border-radius: 25px;
+            color: #a5b4fc; font-size: 0.78rem; padding: 8px 18px; cursor: pointer;
+            backdrop-filter: blur(12px); transition: all 0.3s;
+            font-family: "Space Mono", monospace; letter-spacing: 2px;
+        }
+        #gesture-toggle:hover { border-color: var(--brass-gold); box-shadow: 0 0 20px rgba(240,214,138,0.2); }
+        #gesture-toggle.active { border-color: #38BDF8; color: #38BDF8; box-shadow: 0 0 20px rgba(56,189,248,0.3); }
+        #gesture-toggle.loading {
+            border-color: var(--brass-gold); color: var(--brass-gold-light);
+            box-shadow: 0 0 20px rgba(240,214,138,0.25);
+        }
+        #gesture-toggle:disabled {
+            cursor: wait; opacity: 0.75;
+        }
+        #gesture-status {
+            position: fixed; top: 60px; left: 24px; z-index: 210;
+            font-size: 0.7rem; color: rgba(255,255,255,0.5); font-family: monospace;
+            text-align: left; pointer-events: none;
+        }
+        #gesture-toggle.loading + #gesture-status {
+            color: var(--brass-gold-light);
+            background: rgba(10,5,25,0.72);
+            border: 1px solid rgba(240,214,138,0.25);
+            border-radius: 10px;
+            padding: 7px 10px;
+            box-shadow: 0 0 18px rgba(240,214,138,0.18);
+        }
+
+        #stage-container { width: 100%; height: 62vh; margin-top: 2.2rem; perspective: 1200px; display: flex; justify-content: center; align-items: center; position: relative; z-index: 5; }
+        #carousel-stage { width: 100%; height: 100%; position: absolute; transform-style: preserve-3d; display: flex; justify-content: center; align-items: center; cursor: grab; transition: transform 0.1s linear; }
+        #carousel-stage:active { cursor: grabbing; }
+
+        .tarot-card-wrapper { position: absolute; width: 160px; height: 270px; transform-style: preserve-3d; transition: transform 0.5s, opacity 0.5s, filter 0.4s; backface-visibility: visible; }
+        .tarot-card { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 0.6s; }
+        .tarot-card-wrapper:hover { filter: drop-shadow(0 0 20px rgba(212,168,67,0.6)) drop-shadow(0 0 40px rgba(167,139,250,0.3)); }
+        .tarot-card-wrapper:hover .tarot-card { transform: translateY(-20px); }
+        .card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 10px; overflow: hidden; }
+        .card-back { background: linear-gradient(135deg, #1a0a2e 0%, #0d0420 30%, #1a0835 60%, #0a0314 100%); border: 3px solid #9a7b2a; display: flex; justify-content: center; align-items: center; padding: 6px; box-shadow: 0 8px 25px rgba(0,0,0,0.6), inset 0 0 40px rgba(100,60,20,0.15); }
+        .card-back-inner { width: 100%; height: 100%; border: 1.5px solid rgba(200,160,60,0.45); position: relative; display: flex; justify-content: center; align-items: center; overflow: hidden; border-radius: 2px; }
+        .card-hidden-front { transform: rotateY(180deg); }
+        .card-front { background: linear-gradient(175deg, #F7F0DD 0%, #EDE3C8 25%, #F2E8D0 50%, #E8D9B8 75%, #F5ECD8 100%); transform: rotateY(180deg); border: 3px solid #9a7b2a; padding: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 8px 25px rgba(0,0,0,0.5), inset 0 0 60px rgba(139,100,40,0.08); position: relative; }
+        /* 纸纹叠层 */
+        .card-front::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 5; border-radius: 7px; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(139,100,40,0.02) 2px, rgba(139,100,40,0.02) 4px), repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(139,100,40,0.015) 3px, rgba(139,100,40,0.015) 6px); }
+        /* 金箔微光 */
+        .card-front::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 6; border-radius: 7px; background: linear-gradient(135deg, rgba(255,255,255,0.25) 0%, transparent 30%, transparent 70%, rgba(200,160,60,0.18) 100%); }
+
+        #animation-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 15; pointer-events: none; overflow: hidden; }
+        .shooting-star-card { position: absolute; width: 160px; height: 270px; z-index: 20; transform-style: preserve-3d; pointer-events: none; }
+        #flash-bang { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #fff; opacity: 0; z-index: 30; pointer-events: none; }
+        #burst-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 25; pointer-events: none; }
+
+        .mystic-panel { background: rgba(30,15,60,0.4); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(214,168,67,0.2); border-radius: 12px; padding: 1.5rem; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.6); }
+        .mystic-panel::before, .mystic-panel::after { content: ''; position: absolute; width: 12px; height: 12px; border: 2px solid var(--brass-gold-dark); pointer-events: none; }
+        .mystic-panel::before { top: 6px; left: 6px; border-right: none; border-bottom: none; }
+        .mystic-panel::after { bottom: 6px; right: 6px; border-left: none; border-top: none; }
+
+        #interpretation-panel { position: absolute; bottom: 5%; width: 90%; max-width: 800px; max-height: 40%; overflow-y: auto; z-index: 40; display: none; opacity: 0; transform: translateY(30px); transition: opacity 0.5s, transform 0.5s; }
+        #interpretation-panel.show { display: block; opacity: 1; transform: translateY(0); }
+        .panel-layout { display: flex; gap: 1.5rem; align-items: flex-start; }
+        .energy-line { width: 4px; align-self: stretch; background: linear-gradient(to bottom, transparent, var(--brass-gold-dark), var(--cyan-accent), transparent); animation: pulse-line 2s infinite ease-in-out; }
+        @keyframes pulse-line { 0%,100%{opacity:0.5} 50%{opacity:1} }
+        .interpretation-content { flex: 1; }
+        .panel-title { font-family: "Georgia", serif; color: var(--brass-gold-light); font-size: 1.6rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 10px; }
+        .orientation-badge { font-size: 0.8rem; padding: 2px 8px; border-radius: 4px; border: 1px solid currentColor; display: inline-flex; align-items: center; gap: 4px; }
+        .badge-up { color: var(--brass-gold-light); }
+        .badge-rev { color: var(--mystic-purple2); }
+        .keyword-container { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
+        .keyword-tag { font-size: 0.75rem; color: var(--void-black); background: linear-gradient(135deg, var(--brass-gold-light), var(--brass-gold-dark)); padding: 2px 8px; border-radius: 4px; font-weight: 600; font-family: "Space Mono", monospace; }
+        .detailed-text { color: #e2e8f0; line-height: 1.6; font-size: 0.95rem; text-align: justify; }
+        .drawn-card-list { display: grid; gap: 1rem; }
+        .drawn-card-reading { border-bottom: 1px solid rgba(240,214,138,0.18); padding-bottom: 0.9rem; }
+        .drawn-card-reading:last-child { border-bottom: none; padding-bottom: 0; }
+        .drawn-card-heading { color: var(--brass-gold-light); font-family: "Georgia", serif; font-size: 1.05rem; margin-bottom: 0.45rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .drawn-card-position { color: var(--cyan-accent); font-family: "Space Mono", monospace; font-size: 0.72rem; letter-spacing: 0.04rem; }
+        .close-panel-btn { position: absolute; top: 10px; right: 15px; background: none; border: none; color: var(--text-gold); font-size: 1.2rem; cursor: pointer; transition: color 0.2s; }
+        .close-panel-btn:hover { color: #fff; }
+
+        .ai-read-btn {
+            display: block; margin: 1.2rem auto 0; background: linear-gradient(135deg, #4a3319 0%, #241403 100%);
+            border: 1px solid var(--brass-gold-dark); color: var(--brass-light);
+            font-family: "Georgia", serif; font-size: 1rem; letter-spacing: 4px;
+            padding: 0.8rem 2.5rem; border-radius: 30px; cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 0 15px rgba(212,168,67,0.15);
+        }
+        .ai-read-btn:hover {
+            background: #fff; color: #000; border-color: #fff;
+            box-shadow: 0 0 40px rgba(255,255,255,0.6); transform: translateY(-2px);
+        }
+
+        @media (max-width: 480px) {
+            .tarot-card-wrapper, .shooting-star-card { width: 100px; height: 170px; }
+            .cosmic-title { font-size: 1.8rem; letter-spacing: 0.2rem; white-space: normal; }
+            .panel-layout { flex-direction: column; }
+            .energy-line { width: 100%; height: 2px; }
+            .spread-cluster { flex-wrap: wrap; gap: 1rem; }
+            .spread-node { width: 120px; padding: 1.5rem 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== 顶部导航 ===== -->
+    <nav id="top-nav" style="position:fixed;top:0;left:0;width:100%;z-index:200;display:flex;justify-content:flex-end;align-items:center;padding:12px 24px;gap:12px;pointer-events:none;">
+        <div id="nav-auth" style="pointer-events:auto;display:flex;align-items:center;gap:10px;"></div>
+    </nav>
+
+    <div id="canvas-container"></div>
+    <div id="hubble-lens"></div>
+    <div id="hyper-drive-mask"></div>
+
+    <!-- ===== 功能介绍弹窗 ===== -->
+    <div class="welcome-overlay hidden" id="welcome-overlay">
+        <div class="welcome-card">
+            <button class="welcome-close" onclick="dismissWelcome()" title="关闭">✕</button>
+            <h2>使用指南</h2>
+            <p class="tagline">Quick Start Guide</p>
+            <div class="welcome-features">
+                <div class="welcome-feature">
+                    <span class="icon">✋</span>
+                    <div class="text">
+                        <h4>手势控制卡牌</h4>
+                        <p>进入塔罗舞台后，点击右上角「✋ 手势开关」开启摄像头。向左/右挥手转动卡牌旋转木马，竖单指停止旋转，握拳抽取正前方卡牌</p>
+                    </div>
+                </div>
+                <div class="welcome-feature">
+                    <span class="icon">🔮</span>
+                    <div class="text">
+                        <h4>AI 解读需要登录</h4>
+                        <p>抽牌免费，但查看 AI 深度解读需要注册登录。每位新用户赠送 1 次免费解读额度，更多额度可通过兑换码获取</p>
+                    </div>
+                </div>
+                <div class="welcome-feature">
+                    <span class="icon">📜</span>
+                    <div class="text">
+                        <h4>登录后可保存记录</h4>
+                        <p>登录后所有占卜记录与 AI 解读永久保存在云端，随时在个人中心回顾历史</p>
+                    </div>
+                </div>
+            </div>
+            <button class="welcome-start" onclick="dismissWelcome()">开始占卜</button>
+        </div>
+    </div>
+
+    <!-- ===== 序章：银河 ===== -->
+    <div class="intro-ui-layer" id="intro-layer">
+        <div id="panel-question" class="fade-panel">
+            <h1 class="cosmic-title">Lord of Tarot</h1>
+            <p class="cosmic-subtitle">Le Tarot des Étoiles</p>
+            <div class="input-wrapper">
+                <input type="text" id="divination-target" class="whisper-input" placeholder="将执念赋予群星，输入你的诉求..." autocomplete="off">
+                <button class="ritual-btn" onclick="submitQuestion()">缔结星约</button>
+            </div>
+        </div>
+        <div id="panel-spread" class="fade-panel">
+            <h1 class="cosmic-title" style="font-size:2.4rem;letter-spacing:0.6rem;">调协命运星轨</h1>
+            <p class="cosmic-subtitle" style="margin-bottom:3.5rem;">Gravitational Pattern Selection</p>
+            <div class="spread-cluster">
+                <div class="spread-node" onclick="selectSpreadAndExecute(1)">
+                    <h3 class="node-title">单牌启示</h3>
+                    <p class="node-desc">ONE CARD<br>破开混沌的<br>极亮奇点</p>
+                </div>
+                <div class="spread-node" onclick="selectSpreadAndExecute(3)">
+                    <h3 class="node-title">三星连珠</h3>
+                    <p class="node-desc">THREE CARDS<br>观测时间轴的<br>引力潮汐</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 手势识别幕后元素 ===== -->
+    <video id="gesture-video" autoplay playsinline style="display:none"></video>
+    <canvas id="gesture-canvas" width="320" height="240" style="position:fixed;bottom:8px;right:8px;z-index:60;width:160px;height:120px;border-radius:10px;border:1px solid rgba(240,214,138,0.3);opacity:0.8;display:none"></canvas>
+    <button id="gesture-toggle" onclick="toggleGesture()">✋ 手势开关</button>
+    <div id="gesture-status"></div>
+
+    <!-- ===== 塔罗牌舞台 ===== -->
+    <div id="tarot-ui-layer">
+        <header>
+            <h1>塔罗之主</h1>
+            <div class="cosmic-subtitle">ASTRAL TAROT OF THE FOOL</div>
+            <div id="tarot-spread-label"></div>
+        </header>
+        <div id="stage-container">
+            <div id="carousel-stage"></div>
+        </div>
+    </div>
+
+    <!-- ===== 抽卡动画覆盖层 ===== -->
+    <div id="animation-overlay">
+        <canvas id="burst-canvas"></canvas>
+        <div id="flash-bang"></div>
+    </div>
+
+    <!-- ===== 解读面板 ===== -->
+    <div id="interpretation-panel" class="mystic-panel">
+        <button class="close-panel-btn" onclick="closeInterpretation()">×</button>
+        <div class="panel-layout">
+            <div class="energy-line"></div>
+            <div class="interpretation-content">
+                <div class="panel-title" id="panel-card-name"></div>
+                <div class="keyword-container" id="panel-keywords"></div>
+                <div class="detailed-text" id="panel-desc"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script>
+        // ==================== 顶部导航：登录状态 + 简介按钮 ====================
+        (function(){
+            var nav=document.getElementById('nav-auth');
+            if(!nav) return;
+            var introBtn='<button onclick="document.getElementById(\'welcome-overlay\').classList.remove(\'hidden\')" style="background:none;border:1px solid rgba(124,58,237,0.3);color:#a78bfa;font-size:0.75rem;padding:4px 12px;border-radius:15px;cursor:pointer;font-family:monospace;letter-spacing:1px;transition:all 0.3s;margin-left:4px;" onmouseover="this.style.background=\'rgba(124,58,237,0.1)\';this.style.borderColor=\'#a78bfa\'" onmouseout="this.style.background=\'none\';this.style.borderColor=\'rgba(124,58,237,0.3)\'">简介</button>';
+            if(typeof Auth!=='undefined' && Auth.isLoggedIn()){
+                var user=Auth.getUser();
+                var name=user&&user.username?user.username:'星际旅者';
+                nav.innerHTML=
+                    '<a href="profile.html" style="color:#a5b4fc;font-size:0.8rem;text-decoration:none;letter-spacing:1px;font-family:monospace;transition:color 0.3s;" onmouseover="this.style.color=\'#FFD26A\'" onmouseout="this.style.color=\'#a5b4fc\'">✦ '+name+'</a>' +
+                    '<button onclick="Auth.logout()" style="background:none;border:1px solid rgba(239,68,68,0.3);color:#f87171;font-size:0.75rem;padding:4px 12px;border-radius:15px;cursor:pointer;font-family:monospace;letter-spacing:1px;transition:all 0.3s;" onmouseover="this.style.background=\'rgba(239,68,68,0.15)\';this.style.borderColor=\'#f87171\'" onmouseout="this.style.background=\'none\';this.style.borderColor=\'rgba(239,68,68,0.3)\'">退出</button>' +
+                    introBtn;
+            } else {
+                nav.innerHTML=
+                    '<a href="auth.html" style="border:1px solid rgba(240,214,138,0.3);color:#a5b4fc;font-size:0.78rem;text-decoration:none;padding:6px 16px;border-radius:20px;letter-spacing:2px;font-family:monospace;backdrop-filter:blur(8px);transition:all 0.3s;" onmouseover="this.style.borderColor=\'#FFD26A\';this.style.color=\'#FFD26A\'" onmouseout="this.style.borderColor=\'rgba(240,214,138,0.3)\';this.style.color=\'#a5b4fc\'">登录</a>' +
+                    introBtn;
+            }
+        })();
+
+        // ==================== 🪐 序章：璀璨银河粒子引擎（5层共34.7万粒子） ====================
+        let scene, camera, renderer;
+        let galaxySystem, dustNebula, darkDust, coreGlow, starCloud, galacticHalo, brightStarField;
+        let particleGroups = [];       // 塔罗模式6层粒子
+        let renderMode = 'intro';     // 'intro' | 'tarot'
+        let mouseX = 0, mouseY = 0;
+        let starClock;
+
+        const STAR_COUNT        = 210000;
+        const DUST_COUNT        = 95000;
+        const DARK_DUST_COUNT   = 28000;
+        const CORE_GLOW_COUNT   = 18000;
+        const CLOUD_COUNT       = 65000;
+        const HALO_COUNT        = 42000;
+        const BRIGHT_STAR_COUNT = 1600;
+
+        function addColorNoise(color, amount) {
+            color.r += (Math.random() - 0.5) * amount;
+            color.g += (Math.random() - 0.5) * amount;
+            color.b += (Math.random() - 0.5) * amount;
+            color.r = Math.max(0, Math.min(1, color.r));
+            color.g = Math.max(0, Math.min(1, color.g));
+            color.b = Math.max(0, Math.min(1, color.b));
+        }
+
+        function initExtremeGalaxy() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x000001, 0.00082);
+
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1200);
+            camera.position.set(0, 32, 64);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.55;
+            container.appendChild(renderer.domElement);
+
+            createStarCloud();
+            createGalacticHalo();
+            createGalaxyStars();
+            createDustNebula();
+            createDarkDust();
+            createCoreGlow();
+            createBrightStarField();
+
+            scene.rotation.x = 0.34;
+            scene.rotation.z = -0.16;
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX - window.innerWidth / 2) * 0.0005;
+                mouseY = (e.clientY - window.innerHeight / 2) * 0.0005;
+            });
+
+            setTimeout(() => {
+                document.getElementById('panel-question').classList.add('active');
+            }, 1200);
+
+            starClock = new THREE.Clock();
+            animateExtremeGalaxy();
+        }
+
+        function createStarCloud() {
+            const geo = new THREE.BufferGeometry();
+            const pos = new Float32Array(CLOUD_COUNT * 3);
+            const col = new Float32Array(CLOUD_COUNT * 3);
+            for (let i = 0; i < CLOUD_COUNT; i++) {
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos((Math.random() * 2) - 1);
+                const radius = 360 + Math.pow(Math.random(), 1.05) * 280;
+                pos[i*3] = radius * Math.sin(phi) * Math.cos(theta);
+                pos[i*3+1] = radius * Math.cos(phi) * 0.7;
+                pos[i*3+2] = radius * Math.sin(phi) * Math.sin(theta);
+                const cc = new THREE.Color(Math.random()<0.55?'#1E293B':'#312E81');
+                cc.offsetHSL((Math.random()-0.5)*0.12, 0.18, (Math.random()-0.5)*0.18);
+                col[i*3] = cc.r * 0.42; col[i*3+1] = cc.g * 0.42; col[i*3+2] = cc.b * 0.6;
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+            starCloud = new THREE.Points(geo, new THREE.ShaderMaterial({
+                uniforms: { uTime: { value: 0 } },
+                vertexShader: `uniform float uTime; varying vec3 vColor; void main() { vColor = color; vec3 p = position; float dist = length(p.xz); p.y += sin(uTime*0.3+dist*0.01)*1.2; vec4 mv = modelViewMatrix * vec4(p,1.0); gl_PointSize = (950.0/-mv.z); gl_Position = projectionMatrix * mv; }`,
+                fragmentShader: `varying vec3 vColor; void main() { vec2 c = gl_PointCoord - vec2(0.5); float d = length(c); if(d>0.5) discard; gl_FragColor = vec4(vColor, exp(-d*1.8)*0.35); }`,
+                transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, vertexColors: true
+            }));
+            scene.add(starCloud);
+        }
+
+        function createGalacticHalo() {
+            const geo = new THREE.BufferGeometry();
+            const pos = new Float32Array(HALO_COUNT * 3);
+            const col = new Float32Array(HALO_COUNT * 3);
+            const haloStops = [
+                new THREE.Color('#5D34D0'),
+                new THREE.Color('#FF006E'),
+                new THREE.Color('#00F0FF'),
+                new THREE.Color('#FFD26A')
+            ];
+            for (let i = 0; i < HALO_COUNT; i++) {
+                const radius = 28 + Math.pow(Math.random(), 0.72) * 335;
+                const arm = i % 4;
+                const theta = arm * Math.PI * 0.5 + Math.log(radius) * 2.35 + (Math.random()-0.5) * (0.65 + radius * 0.002);
+                const haze = (Math.random()-0.5) * radius * 0.34;
+                pos[i*3] = Math.cos(theta) * radius + Math.cos(theta + Math.PI * 0.5) * haze;
+                pos[i*3+2] = Math.sin(theta) * radius + Math.sin(theta + Math.PI * 0.5) * haze;
+                pos[i*3+1] = (Math.random()-0.5) * (34 / (radius * 0.035 + 1));
+
+                const band = Math.min(0.999, radius / 363);
+                let hc;
+                if (band < 0.34) hc = haloStops[3].clone().lerp(haloStops[1], band / 0.34);
+                else if (band < 0.68) hc = haloStops[1].clone().lerp(haloStops[0], (band - 0.34) / 0.34);
+                else hc = haloStops[0].clone().lerp(haloStops[2], (band - 0.68) / 0.32);
+                hc.multiplyScalar(0.16 + Math.random() * 0.24);
+                col[i*3]=hc.r; col[i*3+1]=hc.g; col[i*3+2]=hc.b;
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+            galacticHalo = new THREE.Points(geo, new THREE.ShaderMaterial({
+                uniforms: { uTime: { value: 0 } },
+                vertexShader: `uniform float uTime; varying vec3 vColor; void main() { vColor = color; vec3 p = position; float dist = length(p.xz); p.y += sin(uTime*0.22+dist*0.018)*1.05; vec4 mv = modelViewMatrix * vec4(p,1.0); gl_PointSize = (1150.0/-mv.z); gl_Position = projectionMatrix * mv; }`,
+                fragmentShader: `varying vec3 vColor; void main() { vec2 c = gl_PointCoord - vec2(0.5); float d = length(c); if(d>0.5) discard; float mist = smoothstep(0.5, 0.0, d); gl_FragColor = vec4(vColor, mist*0.42); }`,
+                transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, vertexColors: true
+            }));
+            scene.add(galacticHalo);
+        }
+
+        function createGalaxyStars() {
+            const geo = new THREE.BufferGeometry();
+            const pos = new Float32Array(STAR_COUNT * 3);
+            const col = new Float32Array(STAR_COUNT * 3);
+            const colorStops = [
+                new THREE.Color('#FFFFFF'), new THREE.Color('#FFF1C8'), new THREE.Color('#FFD26A'),
+                new THREE.Color('#FF8A4C'), new THREE.Color('#A855F7'), new THREE.Color('#38BDF8'),
+                new THREE.Color('#EC4899'), new THREE.Color('#1E293B')
+            ];
+            for (let i = 0; i < STAR_COUNT; i++) {
+                let x, y, z, radius;
+                if (i < STAR_COUNT * 0.32) {
+                    radius = Math.pow(Math.random(), 1.6) * 10;
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos((Math.random() * 2) - 1);
+                    x = radius * Math.sin(phi) * Math.cos(theta);
+                    y = radius * Math.cos(phi) * 0.35;
+                    z = radius * Math.sin(phi) * Math.sin(theta);
+                    const t = radius / 10;
+                    let bc = colorStops[0].clone().lerp(colorStops[1], t*0.5);
+                    bc.lerp(colorStops[2], t);
+                    addColorNoise(bc, 0.12);
+                    col[i*3]=bc.r*1.7; col[i*3+1]=bc.g*1.6; col[i*3+2]=bc.b*1.5;
+                } else {
+                    radius = Math.pow(Math.random(), 1.06) * 315 + 12;
+                    const armIndex = i % 4;
+                    const spiralFactor = 0.28;
+                    const armAngle = (armIndex * Math.PI * 2) / 4;
+                    const currentAngle = armAngle + Math.log(radius) / spiralFactor;
+                    const randomOffset = (Math.pow(Math.random(), 2.4) * (Math.random()<0.5?1:-1)) * 0.24 * radius;
+                    x = Math.cos(currentAngle) * radius + Math.cos(Math.random()*Math.PI*2) * randomOffset;
+                    z = Math.sin(currentAngle) * radius + Math.sin(Math.random()*Math.PI*2) * randomOffset;
+                    y = (Math.random() - 0.5) * (50 / (radius*0.09 + 1));
+                    let bc, t;
+                    if (radius < 45) { t = (radius-12)/33; bc = colorStops[2].clone().lerp(colorStops[3], t); }
+                    else if (radius < 100) { t = (radius-45)/55; bc = colorStops[3].clone().lerp(colorStops[4], t); }
+                    else if (radius < 170) { t = (radius-100)/70; bc = colorStops[4].clone().lerp(colorStops[5], t); }
+                    else if (radius < 230) { t = (radius-170)/60; bc = colorStops[5].clone().lerp(colorStops[6], t); }
+                    else { t = (radius-230)/52; bc = colorStops[6].clone().lerp(colorStops[7], t); }
+                    if (Math.random()<0.06) bc.lerp(colorStops[Math.floor(Math.random()*6)], 0.35);
+                    addColorNoise(bc, 0.18);
+                    col[i*3]=bc.r*1.35; col[i*3+1]=bc.g*1.25; col[i*3+2]=bc.b*1.45;
+                }
+                pos[i*3]=x; pos[i*3+1]=y; pos[i*3+2]=z;
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+            galaxySystem = new THREE.Points(geo, new THREE.ShaderMaterial({
+                uniforms: { uTime: { value: 0 } },
+                vertexShader: `uniform float uTime; varying vec3 vColor; void main() { vColor = color; vec3 p = position; float dist = length(p.xz); p.y += sin(uTime*1.1+dist*0.045)*0.35; vec4 mv = modelViewMatrix * vec4(p,1.0); gl_PointSize = (280.0/-mv.z)*(0.65+0.35*sin(uTime*3.2+dist*0.18)); gl_Position = projectionMatrix * mv; }`,
+                fragmentShader: `varying vec3 vColor; void main() { vec2 c = gl_PointCoord - vec2(0.5); float d = length(c); if(d>0.5) discard; float core=exp(-d*8.5); float halo=exp(-d*3.2)*0.45; gl_FragColor = vec4(vColor, (core+halo)*0.92); }`,
+                transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, vertexColors: true
+            }));
+            scene.add(galaxySystem);
+        }
+
+        function createDustNebula() {
+            const geo = new THREE.BufferGeometry();
+            const pos = new Float32Array(DUST_COUNT * 3);
+            const col = new Float32Array(DUST_COUNT * 3);
+            const dustColors = ['#C084FC','#F472B6','#FB923C','#22D3EE','#FFD26A','#FFFFFF'];
+            for (let i = 0; i < DUST_COUNT; i++) {
+                const radius = Math.pow(Math.random(), 0.82) * 340 + 8;
+                const armIndex = i % 4;
+                const spiralFactor = 0.27;
+                const armAngle = (armIndex * Math.PI * 2) / 4;
+                const currentAngle = armAngle + Math.log(radius) / spiralFactor;
+                const randomOffset = (Math.random() - 0.5) * 0.62 * radius;
+                pos[i*3] = Math.cos(currentAngle) * radius + Math.cos(Math.random()*Math.PI*2) * randomOffset;
+                pos[i*3+2] = Math.sin(currentAngle) * radius + Math.sin(Math.random()*Math.PI*2) * randomOffset;
+                pos[i*3+1] = (Math.random()-0.5) * (70/(radius*0.075+1));
+                const rand = Math.random();
+                let dc;
+                if (rand<0.25) dc = new THREE.Color(dustColors[0]);
+                else if (rand<0.45) dc = new THREE.Color(dustColors[1]);
+                else if (rand<0.65) dc = new THREE.Color(dustColors[2]);
+                else if (rand<0.82) dc = new THREE.Color(dustColors[3]);
+                else if (rand<0.92) dc = new THREE.Color(dustColors[4]);
+                else dc = new THREE.Color(dustColors[5]);
+                dc.multiplyScalar(0.24 + Math.random()*0.32);
+                col[i*3]=dc.r; col[i*3+1]=dc.g; col[i*3+2]=dc.b;
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+            dustNebula = new THREE.Points(geo, new THREE.ShaderMaterial({
+                uniforms: { uTime: { value: 0 } },
+                vertexShader: `uniform float uTime; varying vec3 vColor; void main() { vColor = color; vec3 p = position; float dist = length(p.xz); p.y += sin(uTime*0.55+dist*0.035)*0.9; vec4 mv = modelViewMatrix * vec4(p,1.0); gl_PointSize = (780.0/-mv.z); gl_Position = projectionMatrix * mv; }`,
+                fragmentShader: `varying vec3 vColor; void main() { vec2 c = gl_PointCoord - vec2(0.5); float d = length(c); if(d>0.5) discard; gl_FragColor = vec4(vColor, exp(-d*2.2)*0.68); }`,
+                transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, vertexColors: true
+            }));
+            scene.add(dustNebula);
+        }
+
+        function createDarkDust() {
+            const geo = new THREE.BufferGeometry();
+            const pos = new Float32Array(DARK_DUST_COUNT * 3);
+            const col = new Float32Array(DARK_DUST_COUNT * 3);
+            for (let i = 0; i < DARK_DUST_COUNT; i++) {
+                const radius = Math.pow(Math.random(), 1.28) * 320 + 15;
+                const angle = Math.log(radius) * 0.33 + (i % 12) * (Math.PI*2/12);
+                const offset = (Math.random()-0.5) * 0.28 * radius;
+                pos[i*3] = Math.cos(angle) * radius + offset * Math.sin(angle);
+                pos[i*3+1] = (Math.random()-0.5) * 18;
+                pos[i*3+2] = Math.sin(angle) * radius - offset * Math.cos(angle);
+                const dc = new THREE.Color('#050508');
+                dc.multiplyScalar(0.45 + Math.random()*0.25);
+                col[i*3]=dc.r; col[i*3+1]=dc.g; col[i*3+2]=dc.b;
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+            darkDust = new THREE.Points(geo, new THREE.ShaderMaterial({
+                uniforms: { uTime: { value: 0 } },
+                vertexShader: `uniform float uTime; varying vec3 vColor; void main() { vColor = color; vec3 p = position; float dist = length(p.xz); p.y += sin(uTime*0.4+dist*0.02)*0.5; vec4 mv = modelViewMatrix * vec4(p,1.0); gl_PointSize = (620.0/-mv.z); gl_Position = projectionMatrix * mv; }`,
+                fragmentShader: `varying vec3 vColor; void main() { vec2 c = gl_PointCoord - vec2(0.5); float d = length(c); if(d>0.5) discard; gl_FragColor = vec4(vColor, exp(-d*2.0)*0.5); }`,
+                transparent: true, blending: THREE.NormalBlending, depthWrite: false, vertexColors: true
+            }));
+            scene.add(darkDust);
+        }
+
+        function createCoreGlow() {
+            const geo = new THREE.BufferGeometry();
+            const pos = new Float32Array(CORE_GLOW_COUNT * 3);
+            const col = new Float32Array(CORE_GLOW_COUNT * 3);
+            for (let i = 0; i < CORE_GLOW_COUNT; i++) {
+                const radius = Math.pow(Math.random(), 1.65) * 13;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos((Math.random() * 2) - 1);
+                pos[i*3] = radius * Math.sin(phi) * Math.cos(theta);
+                pos[i*3+1] = radius * Math.cos(phi) * 0.3;
+                pos[i*3+2] = radius * Math.sin(phi) * Math.sin(theta);
+                const cc = new THREE.Color('#FFFFFF');
+                cc.lerp(new THREE.Color('#FFD26A'), radius/13);
+                cc.multiplyScalar(1.45 + Math.random()*0.9);
+                col[i*3]=cc.r; col[i*3+1]=cc.g; col[i*3+2]=cc.b;
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+            coreGlow = new THREE.Points(geo, new THREE.ShaderMaterial({
+                uniforms: { uTime: { value: 0 } },
+                vertexShader: `uniform float uTime; varying vec3 vColor; void main() { vColor = color; vec3 p = position; float dist = length(p.xz); p.y += sin(uTime*1.8+dist*0.8)*0.18; vec4 mv = modelViewMatrix * vec4(p,1.0); gl_PointSize = (260.0/-mv.z)*(1.0+0.45*sin(uTime*2.5+dist*0.55)); gl_Position = projectionMatrix * mv; }`,
+                fragmentShader: `varying vec3 vColor; void main() { vec2 c = gl_PointCoord - vec2(0.5); float d = length(c); if(d>0.5) discard; float core=exp(-d*10.0); float halo=exp(-d*2.2)*0.8; gl_FragColor = vec4(vColor, (core+halo)*1.15); }`,
+                transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, vertexColors: true
+            }));
+            scene.add(coreGlow);
+        }
+
+        function createBrightStarField() {
+            const geo = new THREE.BufferGeometry();
+            const pos = new Float32Array(BRIGHT_STAR_COUNT * 3);
+            const col = new Float32Array(BRIGHT_STAR_COUNT * 3);
+            const size = new Float32Array(BRIGHT_STAR_COUNT);
+            const starColors = ['#FFFFFF','#FFF8E7','#FFD26A','#38BDF8','#A78BFA'];
+            for (let i = 0; i < BRIGHT_STAR_COUNT; i++) {
+                const radius = 35 + Math.pow(Math.random(), 0.9) * 390;
+                const theta = Math.random() * Math.PI * 2;
+                const height = (Math.random()-0.5) * 155;
+                pos[i*3] = Math.cos(theta) * radius;
+                pos[i*3+1] = height;
+                pos[i*3+2] = Math.sin(theta) * radius;
+                const sc = new THREE.Color(starColors[Math.floor(Math.random()*starColors.length)]);
+                sc.multiplyScalar(1.0 + Math.random()*0.9);
+                col[i*3]=sc.r; col[i*3+1]=sc.g; col[i*3+2]=sc.b;
+                size[i]=0.65+Math.random()*1.65;
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+            geo.setAttribute('color', new THREE.BufferAttribute(col,3));
+            geo.setAttribute('aSize', new THREE.BufferAttribute(size,1));
+            brightStarField = new THREE.Points(geo, new THREE.ShaderMaterial({
+                uniforms: { uTime: { value: 0 } },
+                vertexShader: `attribute float aSize; uniform float uTime; varying vec3 vColor; varying float vPulse; void main() { vColor = color; vPulse = 0.65 + 0.35*sin(uTime*2.4 + aSize*9.0 + position.x*0.02); vec4 mv = modelViewMatrix * vec4(position,1.0); gl_PointSize = aSize * (900.0/-mv.z) * vPulse; gl_Position = projectionMatrix * mv; }`,
+                fragmentShader: `varying vec3 vColor; varying float vPulse; void main() { vec2 c = gl_PointCoord - vec2(0.5); float d = length(c); if(d>0.5) discard; float core=exp(-d*18.0); float rays=(1.0-smoothstep(0.02,0.5,abs(c.x)))*0.18 + (1.0-smoothstep(0.02,0.5,abs(c.y)))*0.18; float halo=exp(-d*3.0)*0.55; gl_FragColor = vec4(vColor, (core+halo+rays)*vPulse); }`,
+                transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, vertexColors: true
+            }));
+            scene.add(brightStarField);
+        }
+
+        // ==================== 塔罗模式：6层粒子（原 astral-tarot） ====================
+        const SHARED_VS = `
+            attribute float size; attribute vec3 customColor; attribute float alpha;
+            varying vec3 vColor; varying float vAlpha;
+            void main() {
+                vColor = customColor; vAlpha = alpha;
+                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                gl_PointSize = size * (300.0 / -mvPosition.z);
+                gl_Position = projectionMatrix * mvPosition;
+            }
+        `;
+        const SHARED_FS = `
+            varying vec3 vColor; varying float vAlpha;
+            void main() {
+                vec2 coord = gl_PointCoord - vec2(0.5);
+                float r2 = dot(coord, coord);
+                if (r2 > 0.25) discard;
+                float intensity = exp(-r2*4.0)*0.6 + exp(-r2*20.0)*0.3 + exp(-r2*100.0)*0.1;
+                gl_FragColor = vec4(vColor, vAlpha * intensity * 2.0);
+            }
+        `;
+
+        function buildTarotStarfield() {
+            // 清除银河层
+            [starCloud, galacticHalo, galaxySystem, dustNebula, darkDust, coreGlow, brightStarField].forEach(o => { if(o) scene.remove(o); });
+            starCloud = galacticHalo = galaxySystem = dustNebula = darkDust = coreGlow = brightStarField = null;
+            particleGroups.forEach(g => scene.remove(g.points));
+            particleGroups = [];
+
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            scene.fog = new THREE.FogExp2(0x020010, 0.015);
+            scene.rotation.set(0, 0, 0);
+            camera.fov = 60; camera.updateProjectionMatrix();
+            camera.position.set(0, 0, 30);
+            camera.lookAt(0, 0, -40);
+
+            const layerConfigs = [
+                { count: 15000, size: 1.2, color: [0.6,0.8,1.0], speed: 0.02, type: 'galaxy' },
+                { count: 500,   size: 2.5, color: [0.94,0.75,0.3], speed: 0.4, type: 'trails' },
+                { count: 10000, size: 1.8, color: [0.95,0.85,0.6], speed: 0.05, type: 'stars' },
+                { count: 25000, size: 2.0, color: [0.65,0.4,0.9], speed: 0.08, type: 'nebula' },
+                { count: 4000,  size: 4.5, color: [0.95,0.8,0.4], speed: 0.03, type: 'core' },
+                { count: 10000, size: 3.5, color: [0.4,0.2,0.5], speed: 0.15, type: 'dust' }
+            ];
+            layerConfigs.forEach(cfg => {
+                const geo = new THREE.BufferGeometry();
+                const pos = new Float32Array(cfg.count*3);
+                const col = new Float32Array(cfg.count*3);
+                const siz = new Float32Array(cfg.count);
+                const alp = new Float32Array(cfg.count);
+                const pha = new Float32Array(cfg.count);
+                for (let i = 0; i < cfg.count; i++) {
+                    pha[i] = Math.random() * Math.PI * 2;
+                    let x=0,y=0,z=0;
+                    if (cfg.type==='galaxy'){ x=(Math.random()-0.5)*150; y=(Math.random()-0.5)*150; z=-100-Math.random()*100; alp[i]=0.3+Math.random()*0.5; }
+                    else if (cfg.type==='trails'){ x=(Math.random()-0.5)*80; y=(Math.random()-0.5)*80; z=(Math.random()-0.5)*100; alp[i]=0; }
+                    else if (cfg.type==='stars'){ x=(Math.random()-0.5)*100; y=(Math.random()-0.5)*100; z=-20-Math.random()*80; alp[i]=0.5+Math.random()*0.5; }
+                    else if (cfg.type==='nebula'){ const ang=Math.random()*Math.PI*2,dist=5+Math.random()*35,arm=(Math.floor(Math.random()*3)*(Math.PI*2/3)),fa=ang+dist*0.05+arm; x=Math.cos(fa)*dist+(Math.random()-0.5)*3; y=Math.sin(fa)*dist+(Math.random()-0.5)*3; z=(Math.random()-0.5)*20-30; alp[i]=0.2+Math.random()*0.4; }
+                    else if (cfg.type==='core'){ const u=Math.random(),v=Math.random(),th=u*Math.PI*2,ph=Math.acos(2*v-1),r=Math.random()*6; x=r*Math.sin(ph)*Math.cos(th); y=r*Math.sin(ph)*Math.sin(th); z=r*Math.cos(ph)-40; alp[i]=0.4+Math.random()*0.6; }
+                    else if (cfg.type==='dust'){ x=(Math.random()-0.5)*60; y=(Math.random()-0.5)*60; z=10+Math.random()*20; alp[i]=0.1+Math.random()*0.2; }
+                    pos[i*3]=x; pos[i*3+1]=y; pos[i*3+2]=z;
+                    col[i*3]=cfg.color[0]+(Math.random()-0.5)*0.1;
+                    col[i*3+1]=cfg.color[1]+(Math.random()-0.5)*0.1;
+                    col[i*3+2]=cfg.color[2]+(Math.random()-0.5)*0.1;
+                    siz[i]=cfg.size*(0.6+Math.random()*0.8);
+                }
+                geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
+                geo.setAttribute('customColor', new THREE.BufferAttribute(col,3));
+                geo.setAttribute('size', new THREE.BufferAttribute(siz,1));
+                geo.setAttribute('alpha', new THREE.BufferAttribute(alp,1));
+                const pts = new THREE.Points(geo, new THREE.ShaderMaterial({
+                    vertexShader: SHARED_VS, fragmentShader: SHARED_FS,
+                    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
+                }));
+                scene.add(pts);
+                particleGroups.push({ points: pts, cfg, phases: pha, positions: pos, alphas: alp });
+            });
+        }
+
+        // ==================== 统一渲染循环 ====================
+        function animateExtremeGalaxy() {
+            requestAnimationFrame(animateExtremeGalaxy);
+            const time = starClock.getElapsedTime();
+
+            if (renderMode === 'intro') {
+                if (starCloud) { starCloud.rotation.y = -time*0.018; starCloud.material.uniforms.uTime.value = time; }
+                if (galacticHalo) { galacticHalo.rotation.y = -time*0.028; galacticHalo.material.uniforms.uTime.value = time; }
+                if (galaxySystem) { galaxySystem.rotation.y = -time*0.055; galaxySystem.material.uniforms.uTime.value = time; }
+                if (dustNebula) { dustNebula.rotation.y = -time*0.038; dustNebula.material.uniforms.uTime.value = time; }
+                if (darkDust) { darkDust.rotation.y = -time*0.065; darkDust.material.uniforms.uTime.value = time; }
+                if (coreGlow) { coreGlow.rotation.y = -time*0.08; coreGlow.material.uniforms.uTime.value = time; }
+                if (brightStarField) { brightStarField.rotation.y = -time*0.012; brightStarField.material.uniforms.uTime.value = time; }
+                camera.position.x = Math.sin(time*0.12)*6;
+                camera.position.y = 32 + Math.cos(time*0.18)*3.2;
+                camera.position.z = 64 + Math.sin(time*0.08)*3;
+                camera.lookAt(0, 1.5, -8);
+            } else {
+                camera.fov = 60; camera.updateProjectionMatrix();
+                camera.position.z = 30 - Math.sin(time*0.05)*3;
+                camera.position.x += (mouseX*15 - camera.position.x)*0.05;
+                camera.position.y += (-mouseY*15 - camera.position.y)*0.05;
+                camera.lookAt(0, 0, -40);
+                particleGroups.forEach(group => {
+                    const geo = group.points.geometry;
+                    const posArr = geo.attributes.position.array;
+                    const alphaArr = geo.attributes.alpha.array;
+                    if (group.cfg.type==='nebula') { group.points.rotation.z = time*-0.015; }
+                    else if (group.cfg.type==='stars') { for(let i=0;i<group.cfg.count;i++) alphaArr[i]=group.alphas[i]+Math.sin(time*2.0+group.phases[i])*0.3; geo.attributes.alpha.needsUpdate=true; }
+                    else if (group.cfg.type==='core') { const s=1.0+Math.sin(time*0.8)*0.08; group.points.scale.set(s,s,s); }
+                    else if (group.cfg.type==='trails') { for(let i=0;i<group.cfg.count;i++){ posArr[i*3]+=group.cfg.speed*0.8; posArr[i*3+1]-=group.cfg.speed*0.5; if(posArr[i*3]>60){posArr[i*3]=-60;posArr[i*3+1]=60;} alphaArr[i]=(Math.sin(time+group.phases[i])>0.5)?0.6*Math.random():0; } geo.attributes.position.needsUpdate=true; geo.attributes.alpha.needsUpdate=true; }
+                    else if (group.cfg.type==='dust') { group.points.rotation.y = time*0.01; group.points.rotation.x = time*0.005; }
+                });
+            }
+            renderer.render(scene, camera);
+        }
+
+        // ==================== 🃏 塔罗牌数据（78张） ====================
+        // 从后端 API 加载详细解读数据
+        let TAROT_DATA = [];
+        const suits = [
+            { id:'wands', name:'权杖', element:'火', color:'#EF4444', symbol:'M12 2l2 6-2 14-2-14z' },
+            { id:'cups', name:'圣杯', element:'水', color:'#3B82F6', symbol:'M6 4h12v4c0 4-3 6-6 6s-6-2-6-6V4zm6 10v6m-4 0h8' },
+            { id:'swords', name:'宝剑', element:'风', color:'#94A3B8', symbol:'M12 2l2 4v12h-4V6zM9 18h6m-3 0v4' },
+            { id:'pentacles', name:'星币', element:'土', color:'#F59E0B', symbol:'M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z' }
+        ];
+
+        // 从 API 加载牌面数据
+        async function loadTarotData() {
+            try {
+                const response = await fetch('/api/cards');
+                const data = await response.json();
+                // 转换为前端格式
+                TAROT_DATA = data.fullDeck.map(card => {
+                    // 生成与图片映射兼容的 id 格式
+                    let id;
+                    if (card.major) {
+                        id = `major_${card.id}`;
+                    } else {
+                        id = `${card.suit}_${card.num}`;
+                    }
+                    return {
+                        id: id,
+                        name: card.nameZh,
+                        type: card.major ? 'major' : 'minor',
+                        suit: card.suit || null,
+                        value: card.num || null,
+                        keywords_up: card.keywords || [],
+                        keywords_rev: card.keywords || [],
+                        desc_up: card.upright,
+                        desc_rev: card.reversed,
+                        roman: card.roman,
+                        element: card.element
+                    };
+                });
+                console.log('塔罗牌数据加载完成:', TAROT_DATA.length, '张牌');
+                return TAROT_DATA;
+            } catch (error) {
+                console.error('加载塔罗牌数据失败:', error);
+                // 回退到基础数据
+                return generateFallbackData();
+            }
+        }
+
+        // 回退数据（当 API 不可用时）
+        function generateFallbackData() {
+            const majorNames = ["愚者","魔术师","女祭司","皇后","皇帝","教皇","恋人","战车","力量","隐士","命运之轮","正义","倒吊人","死神","节制","恶魔","闪电高塔","星星","月亮","太阳","审判","世界"];
+            const courtNames = ["侍从","骑士","女王","国王"];
+
+            function integerToRoman(num) {
+                const lookUp = {M:1000,CM:900,D:500,CD:400,C:100,XC:90,L:50,XL:40,X:10,IX:9,V:5,IV:4,I:1};
+                let roman = ''; for (let i in lookUp) { while (num>=lookUp[i]){roman+=i;num-=lookUp[i];} } return roman;
+            }
+
+            TAROT_DATA = [];
+            for(let i=0;i<=21;i++) TAROT_DATA.push({id:`major_${i}`,name:`${i===0?'0':integerToRoman(i)}.${majorNames[i]}`,type:'major',keywords_up:["未知","开端","命运之变","神启","灵性觉醒"].slice(i%3,(i%3)+3),keywords_rev:["停滞","盲目","抗拒呼唤","幻觉","失序"].slice(i%3,(i%3)+3),desc_up:`在这张充满了神圣诡秘序列的【${majorNames[i]}】正位中，星界的灵性丝线正在与你的命运轨道并轨。虚空中传来神明模糊的呓语，预示着一处关键的非凡源泉即将向你敞开。请保持理智，直面命运的馈赠与不可直视的真相。`,desc_rev:`【${majorNames[i]}】逆位低语着失控与理智的边缘崩溃。象征着星界风暴已经吹散了原本清晰的启示，你可能陷入了某种编织的幻境或是他人设下的高维圈套。盲目的探索只会加速污染，此时应当收敛灵性，静候风暴止息。`});
+            suits.forEach(suit => { for(let v=1;v<=14;v++){ let cn=""; if(v===1)cn=`${suit.name}首牌`; else if(v<=10)cn=`${suit.name} ${v}`; else cn=`${suit.name}${courtNames[v-11]}`; TAROT_DATA.push({id:`${suit.id}_${v}`,name:cn,type:'minor',suit:suit.id,value:v,keywords_up:[`${suit.element}元素`,"行动","情感","具象财富"].slice(v%3,(v%3)+3),keywords_rev:["元素失衡","阻碍","情绪内耗","流失"].slice(v%3,(v%3)+3),desc_up:`这是属于【${suit.name}】序列的具象现实显化。作为${suit.element}元素的正位投射，它表明宇宙底层的以太力量正充盈着你的对应领域。当前的事务拥有坚实的发展支撑，契合自然灵性的律动。`,desc_rev:`【${suit.name}】逆位提示着${suit.element}元素的淤滞或过度宣泄。灵性通道发生了微妙的扭曲，导致原本应顺畅流动的能量发生断层。盲目推进会造成事物走向反面。`}); } });
+            return TAROT_DATA;
+        }
+
+        // 初始化时加载数据
+        loadTarotData();
+
+        // ==================== 🎵 音效 ====================
+        const audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+        function playEtherealTone(freq,duration,type="sine"){ try{ const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type=type; o.frequency.setValueAtTime(freq,audioCtx.currentTime); g.gain.setValueAtTime(0.15,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+duration); o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+duration); }catch(e){} }
+
+        // ==================== 🎠 3D卡牌旋转木马 ====================
+        let currentSpread='single',isDragging=false,startX,startY,rotationX=0,rotationY=0,velocityX=0,velocityY=0,activePool=[],drawnCardsSession=[];
+        // 手势控制变量
+        let gestureEnabled=false;
+        let gestureLoading=false;
+
+        function getSuitPositions(value){ if(value>10)return[{x:50,y:75}]; if(value===1)return[{x:50,y:75}]; if(value===2)return[{x:50,y:45},{x:50,y:105}]; if(value===3)return[{x:50,y:40},{x:50,y:75},{x:50,y:110}]; return[{x:35,y:45},{x:65,y:45},{x:35,y:105},{x:65,y:105},{x:50,y:75}].slice(0,value); }
+
+        // ===== 韦特塔罗牌图片映射 =====
+        // 图片来自 mixvlad/TarotCards 的 tarot/rider-waite/full 目录，已保存到 cards/full_cards/。
+        const MAJOR_IMAGE_FILES = [
+            '00_Fool.jpg','01_Magician.jpg','02_High_Priestess.jpg','03_Empress.jpg','04_Emperor.jpg','05_Hierophant.jpg',
+            '06_Lovers.jpg','07_Chariot.jpg','08_Strength.jpg','09_Hermit.jpg','10_Wheel_of_Fortune.jpg','11_Justice.jpg',
+            '12_Hanged_Man.jpg','13_Death.jpg','14_Temperance.jpg','15_Devil.jpg','16_Tower.jpg','17_Star.jpg',
+            '18_Moon.jpg','19_Sun.jpg','20_Judgement.jpg','21_World.jpg'
+        ];
+        const MINOR_IMAGE_PREFIX = { wands:'Wands', cups:'Cups', swords:'Swords', pentacles:'Pents' };
+
+        function getCardImageUrl(card){
+          if(card.type==='major'){
+            const idx=parseInt(card.id.split('_')[1],10)||0;
+            return `cards/full_cards/${MAJOR_IMAGE_FILES[idx]}`;
+          }
+          return `cards/full_cards/${MINOR_IMAGE_PREFIX[card.suit]}${String(card.value).padStart(2,'0')}.jpg`;
+        }
+
+        function createCardSVG(card){
+          const imgUrl=getCardImageUrl(card);
+          // 使用 roman 字段（如果有）或从 id 提取
+          const romanNum=card.roman || (card.type==='major'?'':card.value);
+          const cardName=card.name;
+          const title=card.type==='major'?`${romanNum} ${cardName}`:cardName;
+
+          return `<svg viewBox="0 0 100 160" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="v" cx="50%" cy="45%"><stop offset="0%" stop-color="transparent"/><stop offset="100%" stop-color="rgba(40,20,5,0.32)"/></radialGradient>
+              <linearGradient id="foil" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="rgba(255,255,255,0.2)"/><stop offset="48%" stop-color="rgba(255,255,255,0)"/><stop offset="100%" stop-color="rgba(200,160,60,0.2)"/></linearGradient>
+              <clipPath id="cp"><rect x="3" y="3" width="94" height="154" rx="6"/></clipPath>
+            </defs>
+            <rect width="100" height="160" fill="#F5EDD8"/>
+            <image href="${imgUrl}" x="3" y="3" width="94" height="154" preserveAspectRatio="xMidYMid meet" clip-path="url(#cp)"/>
+            <rect width="100" height="160" fill="url(#v)" opacity="0.48" pointer-events="none"/>
+            <rect width="100" height="160" fill="url(#foil)" pointer-events="none"/>
+            <rect x="4" y="4" width="92" height="152" rx="5" fill="none" stroke="#9a7b2a" stroke-width="1.5"/>
+            <rect x="6.5" y="6.5" width="87" height="147" rx="3.5" fill="none" stroke="rgba(154,123,42,0.35)" stroke-width="0.8"/>
+            <circle cx="8" cy="8" r="1.8" fill="#9a7b2a"/><circle cx="92" cy="8" r="1.8" fill="#9a7b2a"/>
+            <circle cx="8" cy="152" r="1.8" fill="#9a7b2a"/><circle cx="92" cy="152" r="1.8" fill="#9a7b2a"/>
+            <rect x="4" y="4" width="92" height="14" rx="5" fill="rgba(20,10,5,0.58)"/>
+            <rect x="4" y="10" width="92" height="8" fill="rgba(20,10,5,0.58)"/>
+            <rect x="4" y="142" width="92" height="14" rx="5" fill="rgba(20,10,5,0.5)"/>
+            <rect x="4" y="142" width="92" height="8" fill="rgba(20,10,5,0.5)"/>
+            <text x="50" y="13" font-family="Georgia" font-size="5" text-anchor="middle" fill="#F0D68A" font-weight="bold">${title}</text>
+            <text x="50" y="153" font-family="monospace" font-size="3" text-anchor="middle" fill="rgba(240,214,138,0.72)" letter-spacing="1.1">RIDER-WAITE</text>
+          </svg>`;
+        }
+
+        function createCardBackSVG(){
+          return `<svg width="100%" height="100%" viewBox="0 0 100 160" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="bm" cx="50%" cy="50%"><stop offset="0%" stop-color="#F0D68A" stop-opacity="0.9"/><stop offset="100%" stop-color="#F0D68A" stop-opacity="0"/></radialGradient>
+            </defs>
+            <rect width="100" height="160" fill="#0d0420"/>
+            <circle cx="50" cy="80" r="44" fill="none" stroke="rgba(180,140,60,0.15)" stroke-width="0.5"/>
+            <circle cx="50" cy="80" r="38" fill="none" stroke="rgba(180,140,60,0.25)" stroke-width="0.8"/>
+            <circle cx="50" cy="80" r="34" fill="none" stroke="#9a7b2a" stroke-width="1" stroke-dasharray="4,2"/>
+            <circle cx="50" cy="80" r="28" fill="none" stroke="rgba(167,139,250,0.4)" stroke-width="0.6"/>
+            <circle cx="50" cy="80" r="24" fill="none" stroke="#9a7b2a" stroke-width="1.2"/>
+            <polygon points="50,52 56,64 70,64 60,73 64,86 50,78 36,86 40,73 30,64 44,64" fill="none" stroke="#F0D68A" stroke-width="1"/>
+            <polygon points="50,60 53,67 61,67 55,72 57,80 50,75 43,80 45,72 39,67 47,67" fill="none" stroke="rgba(167,139,250,0.6)" stroke-width="0.8"/>
+            <circle cx="50" cy="72" r="4" fill="none" stroke="#F0D68A" stroke-width="1.2"/>
+            <circle cx="50" cy="72" r="1.5" fill="#F0D68A"/>
+            <line x1="50" y1="56" x2="50" y2="44" stroke="#9a7b2a" stroke-width="1"/>
+            <line x1="50" y1="88" x2="50" y2="100" stroke="#9a7b2a" stroke-width="1"/>
+            <circle cx="50" cy="104" r="3" fill="none" stroke="#F0D68A" stroke-width="0.8"/>
+            <circle cx="50" cy="44" r="3" fill="none" stroke="#F0D68A" stroke-width="0.8"/>
+            <circle cx="26" cy="72" r="3" fill="none" stroke="rgba(167,139,250,0.5)" stroke-width="0.8"/>
+            <circle cx="74" cy="72" r="3" fill="none" stroke="rgba(167,139,250,0.5)" stroke-width="0.8"/>
+            <path d="M6 16 Q6 6 16 6 M84 6 Q94 6 94 16 M94 144 Q94 154 84 154 M16 154 Q6 154 6 144" fill="none" stroke="#9a7b2a" stroke-width="1.2"/>
+            <circle cx="8" cy="8" r="1.5" fill="#F0D68A"/><circle cx="92" cy="8" r="1.5" fill="#F0D68A"/>
+            <circle cx="8" cy="152" r="1.5" fill="#F0D68A"/><circle cx="92" cy="152" r="1.5" fill="#F0D68A"/>
+            <rect x="5" y="5" width="90" height="150" rx="3" fill="url(#bm)" opacity="0.06"/>
+          </svg>`;
+        }
+
+        function createTarotCardMarkup(card,index,revealable){
+          const clickAttr=index===null?'':` onclick="triggerDrawRitual(${index},this)"`;
+          const frontFace=revealable
+            ? `<div class="card-face card-front">${createCardSVG(card)}</div>`
+            : `<div class="card-face card-back card-hidden-front"><div class="card-back-inner">${createCardBackSVG()}</div></div>`;
+          return `<div class="tarot-card"${clickAttr}><div class="card-face card-back"><div class="card-back-inner">${createCardBackSVG()}</div></div>${frontFace}</div>`;
+        }
+
+        function buildCarousel(count){
+            if(count){ if(count===1)currentSpread='single'; else if(count===3)currentSpread='three'; }
+            drawnCardsSession=[];
+            const label=document.getElementById('tarot-spread-label');
+            if(label)label.innerText=currentSpread==='three'?'三星连珠':'单牌启示';
+            const stage=document.getElementById('carousel-stage'); stage.innerHTML='';
+            let shuffled=[...TAROT_DATA].sort(()=>Math.random()-0.5);
+            let nc=currentSpread==='single'?12:15;
+            activePool=shuffled.slice(0,nc);
+            const radius=window.innerWidth<480?260:450;
+            activePool.forEach((card,index)=>{ const w=document.createElement('div'); w.className='tarot-card-wrapper'; const theta=(index/nc)*Math.PI*2; w.dataset.theta=theta; w.dataset.index=index; w.style.transform=`rotateY(${theta}rad) translateZ(${radius}px)`; w.innerHTML=createTarotCardMarkup(card,index,false); stage.appendChild(w); });
+            rotationX=0;rotationY=0;updateStageTransform();
+        }
+
+        const sc=document.getElementById('stage-container');
+        sc.addEventListener('mousedown',(e)=>{ if(e.target.closest('.tarot-card-wrapper')&&!isDragging)return; isDragging=true;startX=e.clientX;startY=e.clientY;velocityX=0;velocityY=0; });
+        window.addEventListener('mousemove',(e)=>{ if(!isDragging)return; const dx=e.clientX-startX,dy=e.clientY-startY;startX=e.clientX;startY=e.clientY;velocityX=dx*0.15;velocityY=dy*0.15;rotationY+=velocityX;rotationX=Math.max(-30,Math.min(30,rotationX-velocityY));updateStageTransform(); });
+        window.addEventListener('mouseup',()=>{isDragging=false;});
+        sc.addEventListener('touchstart',(e)=>{isDragging=true;startX=e.touches[0].clientX;startY=e.touches[0].clientY;velocityX=0;velocityY=0;});
+        window.addEventListener('touchmove',(e)=>{ if(!isDragging)return; const dx=e.touches[0].clientX-startX,dy=e.touches[0].clientY-startY;startX=e.touches[0].clientX;startY=e.touches[0].clientY;velocityX=dx*0.15;velocityY=dy*0.15;rotationY+=velocityX;rotationX=Math.max(-30,Math.min(30,rotationX-velocityY));updateStageTransform(); });
+        window.addEventListener('touchend',()=>{isDragging=false;});
+
+        function updateStageTransform(){ const stage=document.getElementById('carousel-stage'); stage.style.transform=`rotateX(${rotationX}deg) rotateY(${rotationY}deg)`; document.querySelectorAll('.tarot-card-wrapper').forEach(el=>{ const theta=parseFloat(el.dataset.theta); const fa=theta+(rotationY*Math.PI/180); el.style.opacity=Math.cos(fa)<-0.2?'0.35':'1'; }); }
+        setInterval(()=>{
+          if(isDragging)return;
+          // 统一惯性系统（鼠标拖拽和手势挥手共用一个 velocityX）
+          velocityX*=0.95;velocityY*=0.95;
+          rotationY+=(Math.abs(velocityX)<0.01)?0.03:velocityX;
+          rotationX+=velocityY;
+          updateStageTransform();
+        },16);
+
+        // ==================== ✨ 抽卡仪式动画 ====================
+        let isIncantationActive=false;
+        const SPREAD_DRAW_COUNT = { single:1, three:3 };
+        const SPREAD_POSITIONS = {
+            single:['启示'],
+            three:['过去','现在','未来']
+        };
+
+        function getDrawTargets(count, rect){
+            const cx=window.innerWidth/2-rect.width/2;
+            const cy=window.innerHeight/2-rect.height/2;
+            if(count===1)return[{x:cx,y:cy,scale:1.4}];
+            if(count===3){
+                const gap=window.innerWidth<480?112:190;
+                return[-1,0,1].map(n=>({x:cx+n*gap,y:cy,scale:window.innerWidth<480?0.95:1.1}));
+            }
+            return[{x:cx,y:cy,scale:1.4}];
+        }
+
+        function createDrawnCard(poolIndex){
+            const drawIndex=drawnCardsSession.length;
+            return {
+                poolIndex,
+                card:activePool[poolIndex],
+                isUpright:Math.random()>0.35,
+                position:SPREAD_POSITIONS[currentSpread][drawIndex]||`第 ${drawIndex+1} 张`
+            };
+        }
+
+        function triggerDrawRitual(index,cardElement){
+            if(isIncantationActive)return; isIncantationActive=true;
+            const targetCount=SPREAD_DRAW_COUNT[currentSpread]||1;
+            if(drawnCardsSession.length>=targetCount){ isIncantationActive=false; return; }
+            if(drawnCardsSession.some(draw=>draw.poolIndex===index)){ isIncantationActive=false; return; }
+            const draw=createDrawnCard(index);
+            drawnCardsSession.push(draw);
+            const drawIndex=drawnCardsSession.length-1;
+            const clickedWrapper=cardElement.parentElement;
+            const clickedRect=clickedWrapper.getBoundingClientRect();
+            const targets=getDrawTargets(targetCount,clickedRect);
+            playEtherealTone(220,0.5,'sawtooth'); playEtherealTone(440,0.8,'sine');
+            const source=document.querySelector(`.tarot-card-wrapper[data-index="${draw.poolIndex}"]`);
+            const rect=source?source.getBoundingClientRect():clickedRect;
+            const snapshot={
+                rect,
+                transform:source?source.style.transform:clickedWrapper.style.transform,
+                html:createTarotCardMarkup(draw.card,null,true)
+            };
+            if(source)source.style.display='none';
+            document.querySelectorAll('.tarot-card-wrapper').forEach(c=>{
+                if(c.style.display!=='none')c.style.opacity='0.25';
+            });
+
+            const meteor=document.createElement('div');
+            meteor.className='tarot-card-wrapper shooting-star-card';
+            meteor.style.left=`${snapshot.rect.left}px`;
+            meteor.style.top=`${snapshot.rect.top}px`;
+            meteor.style.transform=snapshot.transform;
+            meteor.innerHTML=snapshot.html;
+            document.getElementById('animation-overlay').appendChild(meteor);
+
+            const target=targets[drawIndex];
+            meteor.style.transition='all 1.0s cubic-bezier(0.7,0,0.3,1)';
+            setTimeout(()=>{
+                meteor.style.left=`${target.x}px`;
+                meteor.style.top=`${target.y}px`;
+                meteor.style.transform=`scale(${target.scale}) rotate(${720+drawIndex*36}deg)`;
+                meteor.style.filter='drop-shadow(0 0 30px #F0D68A) brightness(2)';
+            },50);
+
+            setTimeout(()=>{
+                meteor.style.filter='none';
+                meteor.style.transform=`scale(${target.scale}) translateZ(100px)`;
+                const ic=meteor.querySelector('.tarot-card');
+                ic.style.transform=draw.isUpright?'rotateY(180deg)':'rotateY(180deg) rotate(180deg)';
+            },850);
+
+            setTimeout(()=>{const fl=document.getElementById('flash-bang');fl.style.opacity='1';fl.style.transition='none';playEtherealTone(880,0.1,'square');playEtherealTone(150,1.5,'triangle');setTimeout(()=>{fl.style.transition='opacity 0.6s ease-out';fl.style.opacity='0';},50);createStardustExplosion();},850);
+            setTimeout(()=>{
+                if(drawnCardsSession.length>=targetCount){
+                    showInterpretationPanel(drawnCardsSession,targetCount);
+                    return;
+                }
+                updateStageTransform();
+                isIncantationActive=false;
+            },1900);
+        }
+
+        function createStardustExplosion(){ const cv=document.getElementById('burst-canvas'),ctx=cv.getContext('2d'); cv.width=window.innerWidth;cv.height=window.innerHeight; const ps=[],cls=['#D4A843','#F0D68A','#A78BFA','#20D0C0','#ffffff']; for(let i=0;i<2000;i++){ const a=Math.random()*Math.PI*2,sp=2+Math.random()*8; ps.push({x:cv.width/2,y:cv.height/2,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,size:1+Math.random()*2,color:cls[Math.floor(Math.random()*cls.length)],alpha:1,decay:0.015+Math.random()*0.02}); } function rb(){ ctx.clearRect(0,0,cv.width,cv.height); ctx.globalCompositeOperation='screen'; let al=false; for(let i=0;i<ps.length;i++){ const p=ps[i]; if(p.alpha>0){al=true;p.x+=p.vx;p.y+=p.vy;p.vy+=0.05;p.alpha-=p.decay;ctx.fillStyle=p.color;ctx.globalAlpha=p.alpha;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();} } if(al)requestAnimationFrame(rb); else ctx.clearRect(0,0,cv.width,cv.height); } rb(); }
+
+        function showInterpretationPanel(drawnCards,targetCount){
+            const pn=document.getElementById('interpretation-panel');
+            const title=document.getElementById('panel-card-name');
+            const kw=document.getElementById('panel-keywords');
+            const desc=document.getElementById('panel-desc');
+            kw.innerHTML='';
+
+            if(targetCount===1){
+                const draw=drawnCards[0],card=draw.card;
+                title.innerHTML=`${card.name} ${draw.isUpright?'<span class="orientation-badge badge-up">▲ 正位 Upright</span>':'<span class="orientation-badge badge-rev">▼ 逆位 Reversed</span>'}`;
+                (draw.isUpright?card.keywords_up:card.keywords_rev).forEach(k=>{const t=document.createElement('span');t.className='keyword-tag';t.innerText=k;kw.appendChild(t);});
+                desc.innerText=draw.isUpright?card.desc_up:card.desc_rev;
+            }else{
+                title.innerHTML=`已揭示 ${drawnCards.length} / ${targetCount} 张`;
+                desc.innerHTML=`<div class="drawn-card-list">${drawnCards.map(draw=>{
+                    const card=draw.card;
+                    const badge=draw.isUpright?'<span class="orientation-badge badge-up">▲ 正位 Upright</span>':'<span class="orientation-badge badge-rev">▼ 逆位 Reversed</span>';
+                    const keywords=(draw.isUpright?card.keywords_up:card.keywords_rev).map(k=>`<span class="keyword-tag">${k}</span>`).join('');
+                    const text=draw.isUpright?card.desc_up:card.desc_rev;
+                    return `<section class="drawn-card-reading"><div class="drawn-card-heading"><span class="drawn-card-position">${draw.position}</span>${card.name} ${badge}</div><div class="keyword-container">${keywords}</div><p>${text}</p></section>`;
+                }).join('')}</div>`;
+            }
+            pn.style.display='block';
+            // 添加 AI 深度解读按钮
+            let aiBtn=document.getElementById('ai-read-btn');
+            if(!aiBtn){
+                aiBtn=document.createElement('button');
+                aiBtn.id='ai-read-btn';
+                aiBtn.className='ai-read-btn';
+                aiBtn.textContent='AI 深度解读';
+                aiBtn.onclick=goToAIReading;
+                pn.querySelector('.interpretation-content').appendChild(aiBtn);
+            }
+            setTimeout(()=>{pn.classList.add('show');},50);
+        }
+        function closeInterpretation(){
+            playEtherealTone(500,0.3,'sine');
+            const pn=document.getElementById('interpretation-panel');
+            const targetCount=SPREAD_DRAW_COUNT[currentSpread]||1;
+            const shouldContinue=drawnCardsSession.length>0&&drawnCardsSession.length<targetCount;
+            pn.classList.remove('show');
+            setTimeout(()=>{
+                pn.style.display='none';
+                if(shouldContinue){
+                    updateStageTransform();
+                    isIncantationActive=false;
+                    return;
+                }
+                document.querySelectorAll('.shooting-star-card').forEach(m=>m.remove());
+                buildCarousel();
+                isIncantationActive=false;
+            },500);
+        }
+
+        function goToAIReading(){
+            if(typeof Auth!=='undefined' && !Auth.isLoggedIn()){
+                localStorage.setItem('tarot_reading_data',JSON.stringify({
+                    question:userQuestion,
+                    cards:drawnCardsSession.map(d=>({
+                        id:d.card.id,type:d.card.type,suit:d.card.suit,value:d.card.value,
+                        name:d.card.name,roman:d.card.roman,reversed:!d.isUpright,position:d.position
+                    }))
+                }));
+                window.location.href='auth.html?redirect=reading.html';
+                return;
+            }
+            const data={
+                question:userQuestion,
+                cards:drawnCardsSession.map(d=>({
+                    id:d.card.id,
+                    type:d.card.type,
+                    suit:d.card.suit,
+                    value:d.card.value,
+                    name:d.card.name,
+                    roman:d.card.roman,
+                    reversed:!d.isUpright,
+                    position:d.position
+                }))
+            };
+            localStorage.setItem('tarot_reading_data',JSON.stringify(data));
+            window.location.href='reading.html';
+        }
+
+        // ==================== 🌌 序章交互 ====================
+        let userQuestion="";
+        function submitQuestion(){ const ie=document.getElementById('divination-target'); if(!ie.value.trim())return; userQuestion=ie.value.trim(); const pq=document.getElementById('panel-question');pq.classList.add('exit');pq.classList.remove('active');setTimeout(()=>{pq.style.display='none';document.getElementById('panel-spread').classList.add('active');},800); }
+        function selectSpreadAndExecute(cardCount){ document.getElementById('panel-spread').classList.add('exit'); const cc=document.getElementById('canvas-container'),mk=document.getElementById('hyper-drive-mask'),il=document.getElementById('intro-layer'); cc.style.transform='scale(5.8) rotate(45deg)'; setTimeout(()=>{mk.style.opacity='1';},650); setTimeout(()=>{ il.style.display='none'; cc.style.transform='scale(1.0) rotate(0deg)'; renderMode='tarot'; buildTarotStarfield(); document.getElementById('tarot-ui-layer').classList.add('visible'); buildCarousel(cardCount); mk.style.opacity='0'; console.log(`[星宇契约达成] 问题:"${userQuestion}" | 牌阵:${cardCount}`); },1900); }
+
+        document.getElementById('divination-target').addEventListener('keydown',(e)=>{if(e.key==='Enter')submitQuestion();});
+
+        // ==================== ✋ 手势控制系统 ====================
+        function toggleGesture(){
+          if(gestureLoading)return;
+          if(gestureEnabled){ stopGesture(); return; }
+          startGesture();
+        }
+
+        function startGesture(){
+          gestureLoading=true;
+          setGestureLoadingState(true);
+          try{
+            var canvasEl=document.getElementById('gesture-canvas');
+            canvasEl.style.display='block';
+            Gesture.init(
+              document.getElementById('gesture-video'),
+              canvasEl
+            );
+            Gesture.onDetect(function(data){
+              // 每帧都显示原始手势（即时反馈）
+              var raw=data.gesture;
+              var trig=data.triggered;
+              var statusLine='';
+              var delegateLabel=data.debug?' ['+data.debug.delegate+']':'';
+              if(raw){
+                statusLine=raw.emoji+' '+raw.name+delegateLabel;
+                if(data.debug)statusLine+=' | 稳定:'+data.debug.stable+' 范围:'+data.debug.range.toFixed(3);
+              } else {
+                statusLine='🟡 未检测到手'+delegateLabel;
+              }
+              updateGestureStatus(statusLine);
+
+              if(renderMode!=='tarot'||isIncantationActive)return;
+
+              // ---- 连续手势：用 raw gesture，每帧都响应 ----
+              if(raw){
+                if(raw.id==='wave-left'){
+                  // 左手挥 → 牌往左转，持续叠加惯性
+                  velocityX-=0.6;
+                } else if(raw.id==='wave-right'){
+                  // 右手挥 → 牌往右转，持续叠加惯性
+                  velocityX+=0.6;
+                }
+              }
+
+              // ---- 离散手势：用 triggered（防抖，只触发一次） ----
+              if(trig){
+                updateGestureStatus('⚡ 触发: '+trig.emoji+' '+trig.name);
+                if(trig.id==='point'){
+                  velocityX=0; velocityY=0;
+                } else if(trig.id==='fist'){
+                  velocityX=0; velocityY=0;
+                  drawFrontCard();
+                }
+              }
+            });
+            Gesture.start().then(function(){
+              gestureLoading=false;
+              setGestureLoadingState(false);
+              gestureEnabled=true;
+              document.getElementById('gesture-toggle').classList.add('active');
+              document.getElementById('gesture-toggle').textContent='✋ 手势:开';
+              var cfg=Gesture.getConfig();
+              updateGestureStatus('🟢 已启动 ['+cfg.delegate+'] 请挥手');
+            }).catch(function(e){
+              gestureLoading=false;
+              setGestureLoadingState(false);
+              alert('手势模块启动失败: '+(e.message||'摄像头不可用'));
+              document.getElementById('gesture-canvas').style.display='none';
+            });
+          }catch(e){
+            gestureLoading=false;
+            setGestureLoadingState(false);
+            alert('手势模块初始化失败，请检查 gesture.js 是否已加载');
+          }
+        }
+
+        function stopGesture(){
+          gestureLoading=false;
+          gestureEnabled=false;
+          velocityX=0;velocityY=0;
+          try{Gesture.stop();}catch(e){}
+          setGestureLoadingState(false);
+          document.getElementById('gesture-toggle').classList.remove('active');
+          document.getElementById('gesture-toggle').textContent='✋ 手势开关';
+          document.getElementById('gesture-status').textContent='';
+          document.getElementById('gesture-canvas').style.display='none';
+        }
+
+        function setGestureLoadingState(isLoading){
+          var btn=document.getElementById('gesture-toggle');
+          btn.disabled=isLoading;
+          btn.classList.toggle('loading',isLoading);
+          if(isLoading){
+            btn.textContent='✋ 加载中...';
+            updateGestureStatus('正在加载手势识别模型，请稍候...');
+          }
+        }
+
+        function updateGestureStatus(msg){
+          document.getElementById('gesture-status').textContent=msg;
+        }
+
+        // 找到前方面对的牌并触发抽卡
+        function drawFrontCard(){
+          var wrappers=document.querySelectorAll('.tarot-card-wrapper');
+          if(!wrappers.length)return;
+          var bestW=null,bestDist=Infinity;
+          var stageRY=rotationY*Math.PI/180;
+          wrappers.forEach(function(w){
+            var theta=parseFloat(w.dataset.theta)||0;
+            var absAngle=(theta+stageRY)%(Math.PI*2);
+            if(absAngle>Math.PI)absAngle-=Math.PI*2;
+            if(absAngle<-Math.PI)absAngle+=Math.PI*2;
+            if(Math.abs(absAngle)<Math.abs(bestDist)){
+              bestDist=absAngle;bestW=w;
+            }
+          });
+          if(bestW){
+            var cardEl=bestW.querySelector('.tarot-card');
+            if(cardEl)cardEl.click();
+          }
+        }
+
+        // 功能介绍弹窗（仅首次打开显示）
+        function dismissWelcome(){
+          document.getElementById('welcome-overlay').classList.add('hidden');
+          localStorage.setItem('tarot_welcome_shown','1');
+        }
+        window.addEventListener('load',function(){
+          if(!localStorage.getItem('tarot_welcome_shown')){
+            setTimeout(function(){
+              document.getElementById('welcome-overlay').classList.remove('hidden');
+            },800);
+          }
+        });
+
+        window.onload = initExtremeGalaxy;
+    </script>
+</body>
+</html>

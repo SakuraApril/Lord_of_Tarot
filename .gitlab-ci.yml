@@ -1,0 +1,54 @@
+stages:
+  - build
+  - test
+  - deploy
+
+# Build WASM（输出到共享卷）
+build_wasm:
+  stage: build
+  tags:
+    - docker
+  image: emscripten/emsdk:latest
+  script:
+    - emcmake cmake -S cpp/gesture_core -B cpp/gesture_core/build
+    - cmake --build cpp/gesture_core/build
+    - mkdir -p /shared/wasm
+    - cp cpp/gesture_core/build/gesture_core.js /shared/wasm/gesture_core.js
+    - cp cpp/gesture_core/build/gesture_core.wasm /shared/wasm/gesture_core.wasm
+
+# Test（从共享卷读取）
+test:
+  stage: test
+  tags:
+    - docker
+  image: node:18-alpine
+  script:
+    - mkdir -p public/wasm
+    - cp /shared/wasm/gesture_core.js public/wasm/
+    - cp /shared/wasm/gesture_core.wasm public/wasm/
+    - test -f public/wasm/gesture_core.js
+    - test -f public/wasm/gesture_core.wasm
+    - npm ci --omit=dev
+    - node --check server.js
+  allow_failure: true
+
+# Deploy（从共享卷读取）
+deploy:
+  stage: deploy
+  tags:
+    - docker
+  image: node:18-alpine
+  script:
+    - mkdir -p public/wasm
+    - cp /shared/wasm/gesture_core.js public/wasm/
+    - cp /shared/wasm/gesture_core.wasm public/wasm/
+    - apk add --no-cache curl
+    - curl -L https://fly.io/install.sh | sh
+    - export FLYCTL_INSTALL="/root/.fly"
+    - export PATH="$FLYCTL_INSTALL/bin:$PATH"
+    - flyctl deploy --remote-only --app $FLY_APP_NAME
+  only:
+    - main
+  environment:
+    name: production
+    url: https://$FLY_APP_NAME.fly.dev

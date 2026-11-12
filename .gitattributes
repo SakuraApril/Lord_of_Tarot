@@ -1,0 +1,14 @@
+# 二进制资源：不要让 git 做文本换行转换
+# 卡面图已压缩到 ~150 KB/张，直接入库，不走 Git LFS（LFS 会占免费带宽配额）
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.webp binary
+*.wasm binary
+*.task binary
+
+# 文本统一 LF
+*.js text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf

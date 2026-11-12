@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>塔罗之主 - 个人中心</title>
+    <style>
+        :root {
+            --void-black: #000001;
+            --brass-gold: #FFD26A;
+            --brass-gold-dark: #D4A843;
+            --brass-light: #FFF8E7;
+            --brass-gold-light: #F0D68A;
+            --hyper-blue: #38BDF8;
+            --mystic-purple2: #A78BFA;
+            --cyan-accent: #20D0C0;
+            --text-gold: #E8D5A3;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body, html {
+            width: 100%; min-height: 100vh; background: var(--void-black);
+            font-family: "Georgia", serif, system-ui; color: #e2e8f0;
+        }
+        .starfield { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+
+        .profile-container {
+            position: relative; z-index: 1; max-width: 800px; margin: 0 auto;
+            padding: 2rem 1.5rem 4rem; min-height: 100vh;
+        }
+        .page-header { text-align: center; margin-bottom: 2rem; }
+        .page-title {
+            font-size: 2.2rem; color: var(--brass-light); font-weight: 400;
+            letter-spacing: 8px;
+            text-shadow: 0 0 40px rgba(255,248,231,0.4), 0 0 80px rgba(56,189,248,0.2);
+        }
+        .page-subtitle {
+            font-size: 0.75rem; font-family: monospace; letter-spacing: 8px;
+            color: var(--hyper-blue); text-transform: uppercase; margin-top: 0.5rem;
+        }
+        .divider {
+            width: 120px; height: 1px; margin: 1.5rem auto;
+            background: linear-gradient(90deg, transparent, var(--brass-gold-dark), transparent);
+        }
+
+        /* 用户信息卡 */
+        .user-card {
+            background: rgba(30,15,60,0.35); backdrop-filter: blur(16px);
+            border: 1px solid rgba(214,168,67,0.15); border-radius: 16px;
+            padding: 1.5rem 2rem; margin-bottom: 2rem;
+            display: flex; align-items: center; gap: 1.5rem;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+        .user-avatar {
+            width: 60px; height: 60px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--brass-gold-dark), var(--mystic-purple2));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; color: #fff; flex-shrink: 0;
+        }
+        .user-info { flex: 1; }
+        .user-name { font-size: 1.2rem; color: var(--brass-light); margin-bottom: 0.3rem; }
+        .user-email { font-size: 0.8rem; color: #64748b; font-family: monospace; }
+        .logout-btn {
+            background: none; border: 1px solid rgba(239,68,68,0.3); color: #f87171;
+            padding: 0.5rem 1.2rem; border-radius: 20px; font-size: 0.8rem;
+            cursor: pointer; transition: all 0.3s; letter-spacing: 1px;
+        }
+        .logout-btn:hover { background: rgba(239,68,68,0.15); border-color: #f87171; }
+
+        .delete-account-btn {
+            background: none; border: 1px solid rgba(239,68,68,0.5); color: #f87171;
+            padding: 0.5rem 1.2rem; border-radius: 20px; font-size: 0.8rem;
+            cursor: pointer; transition: all 0.3s; letter-spacing: 1px;
+        }
+        .delete-account-btn:hover { background: rgba(239,68,68,0.25); border-color: #f87171; }
+
+        /* 历史记录 */
+        .section-title {
+            font-size: 0.75rem; font-family: monospace; color: var(--text-gold);
+            letter-spacing: 3px; text-align: center; margin-bottom: 1.2rem; opacity: 0.7;
+        }
+        .history-list { display: grid; gap: 1rem; }
+        .history-item {
+            background: rgba(30,15,60,0.25); backdrop-filter: blur(12px);
+            border: 1px solid rgba(214,168,67,0.1); border-radius: 12px;
+            padding: 1.2rem 1.5rem; cursor: pointer; transition: all 0.3s;
+        }
+        .history-item:hover {
+            border-color: rgba(214,168,67,0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+        .history-question {
+            font-size: 1rem; color: var(--brass-light); margin-bottom: 0.5rem;
+            font-style: italic; line-height: 1.5;
+        }
+        .history-meta {
+            display: flex; gap: 1rem; font-size: 0.72rem; font-family: monospace;
+            color: #64748b; letter-spacing: 1px;
+        }
+        .history-cards {
+            display: flex; gap: 0.5rem; margin-top: 0.6rem; flex-wrap: wrap;
+        }
+        .history-card-tag {
+            font-size: 0.7rem; padding: 2px 8px; border-radius: 4px;
+            background: rgba(240,214,138,0.08); border: 1px solid rgba(240,214,138,0.15);
+            color: var(--brass-gold-light);
+        }
+        .history-card-tag.reversed {
+            background: rgba(167,139,250,0.08); border-color: rgba(167,139,250,0.15);
+            color: var(--mystic-purple2);
+        }
+
+        .empty-state {
+            text-align: center; padding: 3rem 1rem; color: #64748b;
+        }
+        .empty-icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.5; }
+        .empty-text { font-size: 0.9rem; margin-bottom: 1rem; }
+
+        .loading-state { text-align: center; padding: 3rem 1rem; }
+        .loading-orb {
+            width: 40px; height: 40px; border-radius: 50%; margin: 0 auto 1rem;
+            background: radial-gradient(circle at 35% 35%, var(--brass-gold-light), var(--brass-gold-dark), var(--mystic-purple2));
+            animation: orbPulse 2s ease-in-out infinite;
+        }
+        @keyframes orbPulse { 0%,100%{transform:scale(1);opacity:0.8} 50%{transform:scale(1.1);opacity:1} }
+
+        .pagination {
+            display: flex; justify-content: center; gap: 0.8rem; margin-top: 2rem;
+        }
+        .page-btn {
+            background: rgba(30,15,60,0.3); border: 1px solid rgba(214,168,67,0.15);
+            color: var(--text-gold); padding: 0.5rem 1.2rem; border-radius: 20px;
+            font-size: 0.8rem; cursor: pointer; transition: all 0.3s;
+        }
+        .page-btn:hover { border-color: var(--brass-gold-dark); }
+        .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .page-info { font-size: 0.75rem; color: #64748b; font-family: monospace; align-self: center; }
+
+        .back-link {
+            display: block; text-align: center; margin-top: 2rem;
+            color: #64748b; font-size: 0.8rem; text-decoration: none;
+        }
+        .back-link:hover { color: var(--text-gold); }
+
+        @media (max-width: 480px) {
+            .page-title { font-size: 1.6rem; letter-spacing: 4px; }
+            .user-card { flex-direction: column; text-align: center; }
+            .profile-container { padding: 1.5rem 1rem 3rem; }
+        }
+
+        .collapsible {
+            background:rgba(30,15,60,0.35);backdrop-filter:blur(16px);
+            border:1px solid rgba(214,168,67,0.15);border-radius:16px;
+            padding:1.2rem 2rem;margin-bottom:0;cursor:pointer;
+            display:flex;justify-content:space-between;align-items:center;
+            transition:all 0.3s;
+        }
+        .collapsible:hover { border-color:rgba(214,168,67,0.3); }
+        .collapsible.open { border-radius:16px 16px 0 0;margin-bottom:0; }
+        .collapse-arrow {
+            color:var(--text-gold);font-size:0.7rem;transition:transform 0.3s;
+        }
+        .collapsible.open .collapse-arrow { transform:rotate(180deg); }
+        .collapsible-body { border-width:0 !important; }
+        .collapsible.open + .collapsible-body {
+            border-width:0 1px 1px 1px !important;
+            border-radius:0 0 16px 16px !important;
+        }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+    </style>
+</head>
+<body>
+<canvas class="starfield" id="starfield"></canvas>
+
+<div class="profile-container">
+    <div class="page-header">
+        <h1 class="page-title">✦ 个人中心 ✦</h1>
+        <div class="page-subtitle">PROFILE</div>
+        <div class="divider"></div>
+    </div>
+
+    <div class="user-card" id="user-card">
+        <div class="user-avatar" id="user-avatar">✦</div>
+        <div class="user-info">
+            <div class="user-name" id="user-name">加载中…</div>
+            <div class="user-email" id="user-email"></div>
+        </div>
+        <div style="display:flex;gap:8px;">
+            <button class="logout-btn" onclick="Auth.logout()">退出</button>
+            <button class="delete-account-btn" onclick="showDeleteConfirm()">删除账号</button>
+        </div>
+    </div>
+
+    <!-- 额度卡（折叠，只显示额度） -->
+    <div class="collapsible" onclick="toggleSection('credits-section',this)">
+        <span style="font-size:0.75rem;font-family:monospace;color:var(--text-gold);letter-spacing:3px;">✦ 占卜额度 ✦</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <span id="credits-count" style="font-size:1.5rem;color:var(--brass-light);font-weight:600;">-</span>
+            <span class="collapse-arrow">▼</span>
+        </div>
+    </div>
+    <div id="credits-section" class="collapsible-body" style="background:rgba(30,15,60,0.35);backdrop-filter:blur(16px);border:1px solid rgba(214,168,67,0.15);border-radius:16px;padding:0 2rem;margin-bottom:1.5rem;max-height:0;overflow:hidden;transition:max-height 0.3s ease,padding 0.3s ease;">
+        <div style="padding:1.2rem 0;">
+            <div id="credits-msg" style="font-size:0.8rem;margin-bottom:8px;min-height:1.2em;transition:opacity 0.3s;"></div>
+            <div style="display:flex;gap:8px;">
+                <input id="redeem-code" type="text" placeholder="输入兑换码" style="flex:1;background:rgba(0,0,0,0.3);border:1px solid rgba(214,168,67,0.2);border-radius:8px;padding:0.6rem 1rem;color:var(--brass-light);font-size:0.85rem;font-family:monospace;letter-spacing:1px;outline:none;" onfocus="this.style.borderColor='rgba(214,168,67,0.4)'" onblur="this.style.borderColor='rgba(214,168,67,0.2)'">
+                <button onclick="event.stopPropagation();handleRedeem()" style="background:linear-gradient(135deg,var(--brass-gold-dark),var(--brass-gold));border:none;color:#000;padding:0.6rem 1.2rem;border-radius:8px;font-size:0.85rem;cursor:pointer;font-weight:600;letter-spacing:1px;transition:all 0.3s;">兑换</button>
+                <button onclick="event.stopPropagation();handlePurchaseCode()" style="background:linear-gradient(135deg,#4c1d95,#2e1065);border:none;color:#e2d1fb;padding:0.6rem 1.2rem;border-radius:8px;font-size:0.85rem;cursor:pointer;font-weight:600;letter-spacing:1px;transition:all 0.3s;">购买</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑资料（折叠） -->
+    <div class="collapsible" onclick="toggleSection('edit-section',this)">
+        <span style="font-size:0.75rem;font-family:monospace;color:var(--text-gold);letter-spacing:3px;">✦ 编辑资料 ✦</span>
+        <span class="collapse-arrow">▼</span>
+    </div>
+    <div id="edit-section" class="collapsible-body" style="background:rgba(30,15,60,0.35);backdrop-filter:blur(16px);border:1px solid rgba(214,168,67,0.15);border-radius:16px;padding:0 2rem;margin-bottom:1.5rem;max-height:0;overflow:hidden;transition:max-height 0.3s ease,padding 0.3s ease;">
+        <div style="padding:1.5rem 0;">
+            <div id="edit-msg" style="font-size:0.8rem;margin-bottom:8px;min-height:1.2em;transition:opacity 0.3s;"></div>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <label style="color:#64748b;font-size:0.8rem;min-width:60px;">用户名</label>
+                <input id="edit-username" type="text" style="flex:1;background:rgba(0,0,0,0.3);border:1px solid rgba(214,168,67,0.2);border-radius:8px;padding:0.5rem 0.8rem;color:var(--brass-light);font-size:0.85rem;outline:none;" onfocus="this.style.borderColor='rgba(214,168,67,0.4)'" onblur="this.style.borderColor='rgba(214,168,67,0.2)'">
+                <button onclick="event.stopPropagation();handleUpdateUsername()" style="background:linear-gradient(135deg,var(--brass-gold-dark),var(--brass-gold));border:none;color:#000;padding:0.5rem 1rem;border-radius:8px;font-size:0.8rem;cursor:pointer;font-weight:600;">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 额度流水（折叠） -->
+    <div class="collapsible" onclick="toggleSection('credit-flow-section',this)">
+        <span style="font-size:0.75rem;font-family:monospace;color:var(--text-gold);letter-spacing:3px;">✦ 额度流水 ✦</span>
+        <span class="collapse-arrow">▼</span>
+    </div>
+    <div id="credit-flow-section" class="collapsible-body" style="background:rgba(30,15,60,0.35);backdrop-filter:blur(16px);border:1px solid rgba(214,168,67,0.15);border-radius:16px;padding:0 2rem;margin-bottom:1.5rem;max-height:0;overflow:hidden;transition:max-height 0.3s ease,padding 0.3s ease;">
+        <div id="credit-flow-area" style="padding:1rem 0;"></div>
+    </div>
+
+    <div class="collapsible" onclick="toggleSection('history-section',this)">
+        <span style="font-size:0.75rem;font-family:monospace;color:var(--text-gold);letter-spacing:3px;">✦ 占卜记录 ✦</span>
+        <span class="collapse-arrow">▼</span>
+    </div>
+    <div id="history-section" class="collapsible-body" style="background:rgba(30,15,60,0.35);backdrop-filter:blur(16px);border:1px solid rgba(214,168,67,0.15);border-radius:16px;padding:0 2rem;margin-bottom:1.5rem;max-height:0;overflow:hidden;transition:max-height 0.3s ease,padding 0.3s ease;">
+        <div style="padding:1.2rem 0;">
+            <div id="history-area">
+                <div class="loading-state">
+                    <div class="loading-orb"></div>
+                </div>
+            </div>
+            <div class="pagination" id="pagination" style="display:none"></div>
+        </div>
+    </div>
+
+    <a class="back-link" href="index.html">✦ 返回星河 ✦</a>
+</div>
+
+<script src="js/auth.js"></script>
+<script>
+// 星空背景
+(function(){
+    var cv=document.getElementById('starfield'),ctx=cv.getContext('2d');
+    var stars=[];
+    function resize(){cv.width=window.innerWidth;cv.height=window.innerHeight;}
+    function init(){resize();stars=[];var n=Math.min(200,Math.floor(cv.width*cv.height/8000));for(var i=0;i<n;i++)stars.push({x:Math.random()*cv.width,y:Math.random()*cv.height,r:Math.random()*1.5+0.3,a:Math.random()*0.6+0.1,ph:Math.random()*Math.PI*2,sp:Math.random()*0.4+0.2});}
+    function draw(ts){ctx.clearRect(0,0,cv.width,cv.height);var t=ts*0.001;for(var i=0;i<stars.length;i++){var s=stars[i];var alpha=s.a*(0.5+0.5*Math.sin(t*s.sp+s.ph));ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fillStyle='rgba(240,214,138,'+alpha+')';ctx.fill();}requestAnimationFrame(draw);}
+    init();requestAnimationFrame(draw);window.addEventListener('resize',function(){resize();init();});
+})();
+
+if (!Auth.isLoggedIn()) {
+    window.location.href = 'auth.html?redirect=profile.html';
+}
+
+var currentPage = 1;
+
+function formatDate(dateStr) {
+    var d = new Date(dateStr);
+    return d.getFullYear() + '-' +
+        String(d.getMonth()+1).padStart(2,'0') + '-' +
+        String(d.getDate()).padStart(2,'0') + ' ' +
+        String(d.getHours()).padStart(2,'0') + ':' +
+        String(d.getMinutes()).padStart(2,'0');
+}
+
+function spreadLabel(type) {
+    if (type === 'single') return '单牌启示';
+    if (type === 'three') return '三星连珠';
+    if (type === 'celtic') return '凯尔特十字';
+    return type;
+}
+
+function renderHistory(readings) {
+    var area = document.getElementById('history-area');
+    if (!readings || readings.length === 0) {
+        area.innerHTML = '<div class="empty-state"><div class="empty-icon">✦</div><div class="empty-text">暂无占卜记录</div></div>';
+        return;
+    }
+    var html = '<div class="history-list">';
+    readings.forEach(function(r) {
+        var cards = [];
+        try { cards = JSON.parse(r.cards_json); } catch(e) {}
+        var cardTags = cards.map(function(c) {
+            var cls = c.reversed ? 'history-card-tag reversed' : 'history-card-tag';
+            var label = c.nameZh || c.name || '';
+            var rev = c.reversed ? ' 逆' : '';
+            return '<span class="' + cls + '">' + label + rev + '</span>';
+        }).join('');
+
+        html += '<div class="history-item" onclick="viewHistory(' + r.id + ')">' +
+            '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
+                '<div class="history-question">' + escHtml(r.question) + '</div>' +
+                '<button onclick="event.stopPropagation();deleteHistoryItem(' + r.id + ')" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:1rem;padding:4px;flex-shrink:0;transition:color 0.3s;" onmouseover="this.style.color=\'#f87171\'" onmouseout="this.style.color=\'#64748b\'">✕</button>' +
+            '</div>' +
+            '<div class="history-meta">' +
+                '<span>' + spreadLabel(r.spread_type) + '</span>' +
+                '<span>' + formatDate(r.created_at) + '</span>' +
+            '</div>' +
+            '<div class="history-cards">' + cardTags + '</div>' +
+        '</div>';
+    });
+    html += '</div>';
+    area.innerHTML = html;
+}
+
+function renderPagination(page, total, limit) {
+    var totalPages = Math.ceil(total / limit);
+    if (totalPages <= 1) { document.getElementById('pagination').style.display = 'none'; return; }
+    var html = '';
+    html += '<button class="page-btn" onclick="loadPage(' + (page-1) + ')" ' + (page <= 1 ? 'disabled' : '') + '>上一页</button>';
+    html += '<span class="page-info">' + page + ' / ' + totalPages + '</span>';
+    html += '<button class="page-btn" onclick="loadPage(' + (page+1) + ')" ' + (page >= totalPages ? 'disabled' : '') + '>下一页</button>';
+    document.getElementById('pagination').innerHTML = html;
+    document.getElementById('pagination').style.display = 'flex';
+}
+
+function escHtml(s) {
+    return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// 折叠/展开切换
+function toggleSection(id, trigger) {
+    var el = document.getElementById(id);
+    var isOpen = trigger.classList.contains('open');
+    if (isOpen) {
+        el.style.maxHeight = '0';
+        el.style.padding = '0 2rem';
+        trigger.classList.remove('open');
+    } else {
+        el.style.maxHeight = el.scrollHeight + 'px';
+        el.style.padding = '0 2rem';
+        trigger.classList.add('open');
+    }
+}
+
+// 折叠区域内容变化后同步高度
+function syncOpenSectionHeight(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var trigger = el.previousElementSibling;
+    if (trigger && trigger.classList.contains('open')) {
+        el.style.maxHeight = el.scrollHeight + 'px';
+    }
+}
+
+// 额度流水
+function sourceLabel(source) {
+    if (source === 'register') return '新用户赠送';
+    if (source === 'redeem') return '卡密兑换';
+    if (source === 'reading') return '占卜消耗';
+    return source;
+}
+
+async function loadCreditTransactions() {
+    var area = document.getElementById('credit-flow-area');
+    try {
+        var data = await Auth.getCreditTransactions(1, 50);
+        if (!data.transactions || data.transactions.length === 0) {
+            area.innerHTML = '<div style="text-align:center;color:#64748b;padding:1rem;font-size:0.85rem;">暂无流水记录</div>';
+            return;
+        }
+        var html = '<div style="display:grid;gap:8px;">';
+        data.transactions.forEach(function(t) {
+            var sign = t.change > 0 ? '+' : '';
+            var color = t.change > 0 ? '#4ade80' : '#f87171';
+            html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0;border-bottom:1px solid rgba(214,168,67,0.08);">' +
+                '<div>' +
+                    '<div style="color:var(--brass-light);font-size:0.85rem;">' + sourceLabel(t.source) + '</div>' +
+                    '<div style="color:#64748b;font-size:0.7rem;font-family:monospace;">' + formatDate(t.created_at) + '</div>' +
+                '</div>' +
+                '<div style="color:' + color + ';font-size:0.9rem;font-family:monospace;font-weight:600;">' + sign + t.change + '</div>' +
+            '</div>';
+        });
+        html += '</div>';
+        area.innerHTML = html;
+    } catch (err) {
+        area.innerHTML = '<div style="text-align:center;color:#64748b;padding:1rem;font-size:0.85rem;">获取失败</div>';
+    }
+}
+
+async function loadHistory() {
+    try {
+        var user = await Auth.getMe();
+        document.getElementById('user-name').textContent = user.username;
+        document.getElementById('user-email').textContent = user.email;
+        document.getElementById('user-avatar').textContent = (user.username || '✦').charAt(0);
+        document.getElementById('edit-username').value = user.username;
+    } catch (e) {
+        Auth.logout();
+        return;
+    }
+    await loadPage(1);
+    loadCreditTransactions();
+}
+
+function showToast(text, type) {
+    var toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;padding:12px 24px;border-radius:8px;font-size:0.85rem;animation:toastIn 0.3s ease;box-shadow:0 4px 20px rgba(0,0,0,0.5);max-width:90vw;text-align:center;';
+    toast.style.background = type === 'success' ? 'rgba(34,197,94,0.9)' : 'rgba(239,68,68,0.9)';
+    toast.style.color = '#fff';
+    toast.textContent = text;
+    document.body.appendChild(toast);
+    setTimeout(function() { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; }, 2500);
+    setTimeout(function() { toast.remove(); }, 3000);
+}
+
+async function handleUpdateUsername() {
+    var val = document.getElementById('edit-username').value.trim();
+    if (!val) { showEditMsg('请输入用户名', '#f87171'); return; }
+    try {
+        var result = await Auth.updateUsername(val);
+        showEditMsg('用户名修改成功', '#22c55e');
+        document.getElementById('user-name').textContent = val;
+        var user = Auth.getUser();
+        if (user) { user.username = val; Auth.setUser(user); }
+    } catch (err) {
+        showEditMsg(err.message, '#f87171');
+    }
+}
+
+function showEditMsg(text, color) {
+    var el = document.getElementById('edit-msg');
+    el.textContent = text;
+    el.style.color = color;
+    el.style.opacity = '1';
+    clearTimeout(el._timer);
+    el._timer = setTimeout(function() {
+        el.style.opacity = '0';
+    }, 3000);
+}
+
+async function loadPage(page) {
+    currentPage = page;
+    var area = document.getElementById('history-area');
+    area.innerHTML = '<div class="loading-state"><div class="loading-orb"></div></div>';
+    syncOpenSectionHeight('history-section');
+    try {
+        var data = await Auth.getHistory(page, 10);
+        renderHistory(data.readings);
+        renderPagination(data.page, data.total, data.limit);
+        syncOpenSectionHeight('history-section');
+    } catch (err) {
+        area.innerHTML = '<div class="empty-state"><div class="empty-text">' + err.message + '</div></div>';
+        syncOpenSectionHeight('history-section');
+    }
+}
+
+function viewHistory(id) {
+    window.location.href = 'reading.html?history_id=' + id;
+}
+
+// 删除历史记录
+async function deleteHistoryItem(id) {
+    if (!confirm('确认删除这条记录？')) return;
+    try {
+        await Auth.deleteHistory(id);
+        showToast('删除成功', 'success');
+        loadPage(currentPage);
+        loadCredits();
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+// 删除账号确认对话框
+function showDeleteConfirm() {
+    var modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML =
+        '<div style="background:rgba(30,15,60,0.95);border:1px solid rgba(239,68,68,0.3);border-radius:16px;padding:2rem;max-width:400px;width:90%;text-align:center;">' +
+            '<div style="font-size:1.5rem;margin-bottom:1rem;color:#f87171;">⚠️</div>' +
+            '<h3 style="color:var(--brass-light);font-size:1.2rem;margin-bottom:0.5rem;font-weight:400;">确认删除账号</h3>' +
+            '<p style="color:#94a3b8;font-size:0.85rem;margin-bottom:1rem;line-height:1.6;">此操作将永久删除您的账号和所有占卜记录，且无法恢复。</p>' +
+            '<input id="delete-password" type="password" placeholder="请输入密码确认" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:0.6rem 1rem;color:var(--brass-light);font-size:0.85rem;outline:none;margin-bottom:1rem;box-sizing:border-box;" onfocus="this.style.borderColor=\'#f87171\'" onblur="this.style.borderColor=\'rgba(239,68,68,0.3)\'">' +
+            '<p id="delete-error" style="color:#f87171;font-size:0.8rem;margin-bottom:0.8rem;display:none;"></p>' +
+            '<div style="display:flex;gap:10px;justify-content:center;">' +
+                '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="background:none;border:1px solid rgba(255,255,255,0.2);color:#94a3b8;padding:0.6rem 1.5rem;border-radius:20px;cursor:pointer;font-size:0.85rem;transition:all 0.3s;">取消</button>' +
+                '<button onclick="deleteAccount()" style="background:rgba(239,68,68,0.2);border:1px solid #f87171;color:#f87171;padding:0.6rem 1.5rem;border-radius:20px;cursor:pointer;font-size:0.85rem;transition:all 0.3s;">确认删除</button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(modal);
+    document.getElementById('delete-password').focus();
+}
+
+async function deleteAccount() {
+    var password = document.getElementById('delete-password').value;
+    if (!password) {
+        var errEl = document.getElementById('delete-error');
+        errEl.textContent = '请输入密码'; errEl.style.display = 'block';
+        return;
+    }
+    try {
+        await Auth.deleteAccount(password);
+        window.location.href = 'auth.html';
+    } catch (err) {
+        var errEl2 = document.getElementById('delete-error');
+        errEl2.textContent = err.message; errEl2.style.display = 'block';
+    }
+}
+
+// 加载额度
+async function loadCredits() {
+    try {
+        var data = await Auth.getCredits();
+        document.getElementById('credits-count').textContent = data.credits;
+    } catch (e) {
+        document.getElementById('credits-count').textContent = '0';
+    }
+}
+
+// 兑换卡密
+async function handleRedeem() {
+    var codeInput = document.getElementById('redeem-code');
+    var code = codeInput.value.trim();
+    if (!code) {
+        showCreditsMsg('请输入兑换码', '#f87171');
+        return;
+    }
+    try {
+        var result = await Auth.redeem(code);
+        showCreditsMsg('兑换成功，+' + result.added + ' 额度', '#22c55e');
+        codeInput.value = '';
+        document.getElementById('credits-count').textContent = result.credits;
+    } catch (err) {
+        showCreditsMsg(err.message, '#f87171');
+    }
+}
+
+function showCreditsMsg(text, color) {
+    var el = document.getElementById('credits-msg');
+    el.textContent = text;
+    el.style.color = color;
+    el.style.opacity = '1';
+    clearTimeout(el._timer);
+    el._timer = setTimeout(function() {
+        el.style.opacity = '0';
+    }, 3000);
+}
+
+// 购买兑换码
+async function handlePurchaseCode() {
+    // 跳转到购买页面或显示购买弹窗
+    window.open('https://pay.ldxp.cn/item/tttgoj', '_blank');
+}
+
+loadCredits();
+loadHistory();
+</script>
+</body>
+</html>

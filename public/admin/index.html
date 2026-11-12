@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>塔罗 - 用户管理</title>
+<script src="https://lib.baomitu.com/three.js/0.160.0/three.min.js"></script>
+<script src="/js/galaxy-bg.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #000001; color: #e2e8f0; font-family: system-ui,sans-serif; min-height: 100vh; overflow-x: hidden; }
+  #galaxy-bg { position: fixed; top: -2%; left: -2%; width: 104%; height: 104%; z-index: 0; }
+  #app { position: relative; z-index: 1; padding: 32px; min-height: 100vh; }
+  h1 { color: #F0D68A; font-size: 1.5rem; margin-bottom: 4px; }
+  .sub { color: #7C3AED; font-size: 0.8rem; margin-bottom: 24px; font-family: monospace; }
+  .stat { display: flex; gap: 24px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stat-card { background: rgba(10,5,30,0.65); backdrop-filter: blur(12px); border: 1px solid rgba(212,168,67,0.2); border-radius: 10px; padding: 16px 24px; }
+  .stat-card .num { font-size: 2rem; color: #F0D68A; font-weight: bold; }
+  .stat-card .label { font-size: 0.75rem; color: #a5b4fc; margin-top: 4px; }
+  .toolbar { display: flex; gap: 10px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+  .search-input { background: rgba(10,5,30,0.65); backdrop-filter: blur(12px); border: 1px solid rgba(212,168,67,0.3); border-radius: 8px; padding: 10px 16px; color: #fff; font-size: 0.9rem; outline: none; width: 280px; }
+  .search-input:focus { border-color:#D4A843; }
+  .search-input::placeholder { color: #666; }
+  table { width: 100%; border-collapse: collapse; background: rgba(10,5,30,0.55); backdrop-filter: blur(8px); border-radius: 10px; overflow: hidden; }
+  th { text-align: left; padding: 12px 16px; background: rgba(30,15,60,0.7); color: #a5b4fc; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; }
+  td { padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem; }
+  tr.user-row { cursor: pointer; }
+  tr.user-row:hover td { background: rgba(212,168,67,0.1); }
+  tr.user-row.selected td { background: rgba(124,58,237,0.25); border-left: 3px solid #7C3AED; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+  .badge.ok { background: rgba(34,197,94,0.2); color: #4ade80; }
+  .badge.no { background: rgba(239,68,68,0.2); color: #f87171; }
+  .credits-cell { color: #FBBF24; font-weight: 600; }
+  .btn { background: rgba(212,168,67,0.1); border: 1px solid rgba(212,168,67,0.3); color: #F0D68A; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+  .btn:hover { background: rgba(212,168,67,0.25); }
+  .btn.danger { border-color: rgba(239,68,68,0.4); color: #f87171; background: rgba(239,68,68,0.05); }
+  .btn.danger:hover { background: rgba(239,68,68,0.25); }
+  .btn.primary { border-color: rgba(56,189,248,0.4); color: #38BDF8; background: rgba(56,189,248,0.05); }
+  .btn.primary:hover { background: rgba(56,189,248,0.2); }
+  .btn.sm { padding: 4px 10px; font-size: 0.75rem; }
+  .tab-bar-admin { display:flex; gap:0; margin-bottom:20px; border-bottom:1px solid rgba(212,168,67,0.15); }
+  .tab-btn-admin { flex:1; padding:10px; background:none; border:none; color:#64748b; font-size:0.9rem; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.3s; max-width:180px; }
+  .tab-btn-admin.active { color:#F0D68A; border-bottom-color:#D4A843; }
+  .tab-btn-admin:hover { color:#e2e8f0; }
+  .tx-plus { color:#4ade80;font-weight:600; }
+  .tx-minus { color:#f87171;font-weight:600; }
+  .credits-input { background: rgba(10,5,30,0.8); border: 1px solid rgba(56,189,248,0.3); border-radius: 6px; padding: 6px 10px; color: #FBBF24; font-size: 0.9rem; width: 80px; text-align: center; outline: none; }
+  .credits-input:focus { border-color: #38BDF8; }
+  .error { color: #f87171; padding: 20px; }
+  .loading { color: #a5b4fc; padding: 20px; }
+  .result-info { font-size: 0.8rem; color: #a5b4fc; margin-left: auto; }
+  #detail-panel { position: fixed; top: 0; right: 0; width: 520px; height: 100vh; z-index: 50; background: rgba(8,4,24,0.92); backdrop-filter: blur(20px); border-left: 1px solid rgba(212,168,67,0.2); box-shadow: -8px 0 30px rgba(0,0,0,0.6); transform: translateX(100%); transition: transform 0.35s ease; display: flex; flex-direction: column; overflow: hidden; }
+  #detail-panel.open { transform: translateX(0); }
+  .detail-header { padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center; }
+  .detail-header h2 { color: #F0D68A; font-size: 1.1rem; }
+  .detail-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+  .reading-card { background: rgba(30,15,60,0.5); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+  .reading-card .meta { display: flex; justify-content: space-between; font-size: 0.75rem; color: #a5b4fc; margin-bottom: 8px; }
+  .reading-card .question { color: #F0D68A; font-weight: 600; margin-bottom: 6px; }
+  .reading-card .cards { font-size: 0.85rem; color: #cbd5e1; margin-bottom: 8px; }
+  .reading-card .ai-text { font-size: 0.82rem; color: #94a3b8; line-height: 1.7; max-height: 200px; overflow-y: auto; white-space: pre-wrap; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; }
+  .user-info { margin-bottom: 14px; }
+  .user-info span { display: block; font-size: 0.85rem; line-height: 1.8; }
+  .no-readings { color: #666; font-style: italic; padding: 20px 0; text-align: center; }
+  .overlay { position: fixed; inset:0; background:rgba(0,0,0,0.7); z-index:99; display:flex; align-items:center; justify-content:center; }
+  .dialog { background: #1a1030; border:1px solid rgba(212,168,67,0.3); border-radius:12px; padding:24px 28px; max-width:400px; width:90%; }
+  .dialog h3 { color:#F0D68A; margin-bottom:12px; }
+  .dialog p { color:#cbd5e1; font-size:0.9rem; margin-bottom:20px; line-height:1.6; }
+  .dialog .actions { display:flex; gap:10px; justify-content:flex-end; }
+  .dialog .actions { display:flex; gap:10px; justify-content:flex-end; }
+  @media (max-width: 700px) { #app { padding:16px; } #detail-panel { width:100%; } table { font-size:0.75rem; } .search-input { width:100%; } }
+</style>
+</head>
+<body>
+
+<div id="galaxy-bg"></div>
+
+<div id="app">
+<h1>Lord of Tarot · 用户管理</h1>
+<div class="sub">ADMIN PANEL</div>
+
+<div id="status" class="loading">正在加载…</div>
+<div id="detail-mask" style="display:none;position:fixed;inset:0;z-index:49;background:rgba(0,0,0,0.3);" onclick="closeDetail()"></div>
+
+<!-- Tab 切换 -->
+<div class="tab-bar-admin" id="tab-bar">
+  <button class="tab-btn-admin active" onclick="switchAdminTab('users')">👥 用户管理</button>
+  <button class="tab-btn-admin" onclick="switchAdminTab('transactions')">💳 兑换充值</button>
+</div>
+
+<!-- 用户管理面板 -->
+
+<div id="stats" style="display:none">
+  <div class="stat">
+    <div class="stat-card"><div class="num" id="total-users">-</div><div class="label">注册用户</div></div>
+    <div class="stat-card"><div class="num" id="verified-users">-</div><div class="label">已验证邮箱</div></div>
+    <div class="stat-card"><div class="num" id="active-users">-</div><div class="label">有过占卜</div></div>
+    <div class="stat-card"><div class="num" id="total-credits">-</div><div class="label">总积分数</div></div>
+  </div>
+  <div id="users-panel">
+  <div class="toolbar">
+    <input class="search-input" id="search" placeholder="搜索邮箱或昵称…" oninput="onSearchInput()">
+    <button class="btn" onclick="doSearch()">搜索</button>
+    <button class="btn" onclick="clearSearch()" id="btn-clear" style="display:none">清除</button>
+    <span class="result-info" id="result-info"></span>
+  </div>
+  <table>
+    <thead>
+      <tr><th>序号</th><th>昵称</th><th>邮箱</th><th>积分</th><th>归属地</th><th>最后登录IP</th><th>最后登录</th><th>验证</th><th>占卜</th><th>注册时间</th><th>操作</th></tr>
+    </thead>
+    <tbody id="user-table"></tbody>
+  </table>
+  </div>
+
+  <div id="transactions-panel" style="display:none">
+  <table>
+    <thead>
+      <tr><th>序号</th><th>用户</th><th>邮箱</th><th>变动</th><th>余额</th><th>来源</th><th>时间</th></tr>
+    </thead>
+    <tbody id="tx-table"></tbody>
+  </table>
+  <div id="tx-page" style="margin-top:12px;text-align:center;"></div>
+  </div>
+</div>
+
+<div id="detail-panel">
+  <div class="detail-header">
+    <h2 id="detail-title">用户详情</h2>
+    <button class="btn sm" onclick="closeDetail()">✕ 关闭</button>
+  </div>
+  <div class="detail-body" id="detail-body">
+    <div class="loading">点击用户行查看详情…</div>
+  </div>
+</div>
+
+<div id="del-overlay" class="overlay" style="display:none">
+  <div class="dialog">
+    <h3>确认删除</h3>
+    <p id="del-msg"></p>
+    <div class="actions">
+      <button class="btn" onclick="closeDeleteDialog()">取消</button>
+      <button class="btn danger" onclick="confirmDelete()">确认删除</button>
+    </div>
+  </div>
+</div>
+
+<div id="credits-overlay" class="overlay" style="display:none">
+  <div class="dialog">
+    <h3>修改占卜额度</h3>
+    <p id="credits-msg">当前额度：<b id="credits-current">-</b></p>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;">
+      <input class="credits-input" id="credits-new" type="number" min="0" value="0" style="width:100px;">
+      <span style="color:#a5b4fc;font-size:0.85rem;">积分</span>
+    </div>
+    <div class="actions">
+      <button class="btn" onclick="closeCreditsDialog()">取消</button>
+      <button class="btn primary" onclick="confirmCredits()">确认修改</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+GalaxyBG.init('galaxy-bg');
+
+var allUsers=[],deleteTargetId=null,selectedUserId=null,creditsTargetId=null;
+
+async function loadData(search){
+  var s=document.getElementById('status');
+  s.className='loading';s.textContent='正在加载…';
+  document.getElementById('stats').style.display='none';
+  try{
+    var url='/api/admin/users';
+    if(search)url+='?search='+encodeURIComponent(search);
+    var r=await fetch(url);
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    var data=await r.json();
+    allUsers=data.users;
+    document.getElementById('total-users').textContent=data.total;
+    document.getElementById('verified-users').textContent=data.users.filter(function(u){return u.email_verified;}).length;
+    document.getElementById('active-users').textContent=data.users.filter(function(u){return u.readings_count>0;}).length;
+    document.getElementById('total-credits').textContent=data.users.reduce(function(sum,u){return sum+(u.credits||0);},0);
+    renderTable(data.users);
+    document.getElementById('result-info').textContent=search?'搜索：'+data.total+' 条':'共 '+data.total+' 人';
+    document.getElementById('btn-clear').style.display=search?'inline-block':'none';
+    s.style.display='none';
+    document.getElementById('stats').style.display='block';
+    document.title='('+data.total+') 用户管理';
+  }catch(e){s.className='error';s.textContent='❌ 加载失败：'+e.message;}
+}
+
+function renderTable(users){
+  var t=document.getElementById('user-table');
+  t.innerHTML=users.map(function(u,idx){
+    return '<tr class="user-row'+(u.id===selectedUserId?' selected':'')+'" onclick="showDetail('+u.id+')">'+
+      '<td>'+(idx+1)+'</td><td>'+(esc(u.username)||'—')+'</td><td>'+esc(u.email)+'</td>'+
+      '<td><span class="credits-cell">'+(u.credits||0)+'</span> '+
+      '<button class="btn primary sm" onclick="event.stopPropagation();openCredits('+u.id+','+(u.credits||0)+',\''+esc(u.email||u.username)+'\')" title="修改额度">✎</button></td>'+
+      '<td>'+(esc(u.last_location)||'—')+'</td>'+
+      '<td><span title="登录次数：'+(u.login_count||0)+'">'+(esc(u.last_ip)||'—')+'</span></td>'+
+      '<td>'+(u.last_login_at?fmtTime(u.last_login_at):'—')+'</td>'+
+      '<td>'+(u.email_verified?'<span class="badge ok">已验证</span>':'<span class="badge no">未验证</span>')+'</td>'+
+      '<td>'+(u.readings_count||0)+'</td>'+
+      '<td>'+fmtTime(u.created_at)+'</td>'+
+      '<td><button class="btn danger sm" onclick="event.stopPropagation();askDelete('+u.id+',\''+esc(u.email)+'\')">删除</button></td>'+
+      '</tr>';
+  }).join('');
+}
+
+async function showDetail(userId){
+  selectedUserId=userId;
+  document.querySelectorAll('.user-row').forEach(function(r){r.classList.remove('selected');});
+  var row=document.querySelector('.user-row[onclick*="'+userId+'"]');
+  if(row)row.classList.add('selected');
+  var panel=document.getElementById('detail-panel'),body=document.getElementById('detail-body');
+  var user=allUsers.find(function(u){return u.id===userId;});
+  document.getElementById('detail-title').textContent=user?(user.username||user.email):'用户详情';
+  body.innerHTML='<div class="loading">加载中…</div>';
+  panel.classList.add('open');
+  document.getElementById('detail-mask').style.display='block';
+  try{
+    var r=await fetch('/api/admin/users/'+userId+'/readings');
+    var data=await r.json();
+    if(!user){body.innerHTML='<div class="error">用户数据未找到</div>';return;}
+    var html='<div class="user-info">';
+    html+='<span>📧 '+esc(user.email)+'</span>';
+    html+='<span>👤 '+(esc(user.username)||'—')+'</span>';
+    html+='<span>⭐ 占卜额度：<b>'+(user.credits||0)+'</b> 积分 '+
+      '<button class="btn primary sm" onclick="openCredits('+user.id+','+(user.credits||0)+',\''+esc(user.username||user.email)+'\')">修改</button></span>';
+    html+='<span>📅 注册：'+fmtTime(user.created_at)+'</span>';
+    html+='<span>🌐 最后登录IP：'+(esc(user.last_ip)||'—')+'（'+fmtTime(user.last_login_at)+'）</span>';
+    html+='<span>🔑 累计登录次数：'+(user.login_count||0)+'</span>';
+    html+='<span>🔮 占卜次数：'+(user.readings_count||0)+'</span></div>';
+    // 获取登录历史
+    try{
+      var lr=await fetch('/api/admin/users/'+userId+'/logins');
+      var ld=await lr.json();
+      if(ld.logs&&ld.logs.length>0){
+        html+='<h3>登录记录 ('+ld.logs.length+')</h3>';
+        ld.logs.forEach(function(l){
+          html+='<div class="reading-card" style="padding:10px 14px;">';
+          html+='<div class="meta"><span>🌐 '+esc(l.ip)+(l.location?'（'+esc(l.location)+'）':'')+'</span><span>'+fmtTime(l.created_at)+'</span></div>';
+          html+='<div style="font-size:0.72rem;color:#888;">'+(esc(l.user_agent)||'—')+'</div>';
+          html+='</div>';
+        });
+      }
+    }catch(e){}
+    if(data.readings.length===0){html+='<div class="no-readings">该用户还没有占卜记录</div>';}
+    else{
+      html+='<h3>占卜记录 ('+data.readings.length+')</h3>';
+      data.readings.forEach(function(rd,i){
+        var cardsLabel='';
+        try{var cards=JSON.parse(rd.cards_json);cardsLabel=cards.map(function(c){return(c.nameZh||c.name||'?')+(c.reversed?' (逆)':' (正)');}).join(' · ');}catch(e){cardsLabel=rd.cards_json;}
+        html+='<div class="reading-card">';
+        html+='<div class="meta"><span>#'+(data.readings.length-i)+'</span><span>'+fmtTime(rd.created_at)+'</span><span>'+esc(rd.spread_type)+'</span></div>';
+        html+='<div class="question">❓ '+esc(rd.question)+'</div>';
+        html+='<div class="cards">🃏 '+esc(cardsLabel)+'</div>';
+        if(rd.ai_response){var preview=rd.ai_response.length>400?rd.ai_response.substring(0,400)+'…':rd.ai_response;html+='<div class="ai-text">'+esc(preview)+'</div>';}
+        html+='</div>';
+      });
+    }
+    body.innerHTML=html;
+  }catch(e){body.innerHTML='<div class="error">加载失败：'+e.message+'</div>';}
+}
+
+function closeDetail(){
+  selectedUserId=null;
+  document.querySelectorAll('.user-row').forEach(function(r){r.classList.remove('selected');});
+  document.getElementById('detail-panel').classList.remove('open');
+  document.getElementById('detail-mask').style.display='none';
+}
+
+function openCredits(id,current,name){
+  creditsTargetId=id;
+  document.getElementById('credits-current').textContent=current||0;
+  document.getElementById('credits-new').value=current||0;
+  document.getElementById('credits-msg').innerHTML='用户 <b>'+esc(name)+'</b>（ID: '+id+'）<br>当前额度：<b>'+(current||0)+'</b> 积分';
+  document.getElementById('credits-overlay').style.display='flex';
+}
+function closeCreditsDialog(){creditsTargetId=null;document.getElementById('credits-overlay').style.display='none';}
+async function confirmCredits(){
+  if(!creditsTargetId)return;
+  var newVal=parseInt(document.getElementById('credits-new').value)||0;
+  try{
+    var r=await fetch('/api/admin/users/'+creditsTargetId+'/credits',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({credits:newVal})});
+    var data=await r.json();
+    if(!r.ok)throw new Error(data.error||'HTTP '+r.status);
+    closeCreditsDialog();
+    var u=allUsers.find(function(x){return x.id===creditsTargetId;});
+    if(u)u.credits=newVal;
+    renderTable(allUsers);
+    if(selectedUserId===creditsTargetId)showDetail(creditsTargetId);
+    document.getElementById('total-credits').textContent=allUsers.reduce(function(s,u){return s+(u.credits||0);},0);
+  }catch(e){alert('修改失败：'+e.message);}
+}
+
+function onSearchInput(){clearTimeout(window._searchTimer);window._searchTimer=setTimeout(doSearch,300);}
+function doSearch(){loadData(document.getElementById('search').value.trim());}
+function clearSearch(){document.getElementById('search').value='';loadData('');}
+
+// Tab 切换
+function switchAdminTab(tab){
+  document.querySelectorAll('.tab-btn-admin').forEach(function(b){b.classList.remove('active');});
+  if(tab==='users'){
+    document.querySelectorAll('.tab-btn-admin')[0].classList.add('active');
+    document.getElementById('users-panel').style.display='';
+    document.getElementById('transactions-panel').style.display='none';
+    loadData('');
+  } else {
+    document.querySelectorAll('.tab-btn-admin')[1].classList.add('active');
+    document.getElementById('users-panel').style.display='none';
+    document.getElementById('transactions-panel').style.display='';
+    loadTransactions(1);
+  }
+}
+
+var txPage=1;
+async function loadTransactions(page){
+  txPage=page||1;
+  try{
+    var r=await fetch('/api/admin/transactions?page='+txPage);
+    var d=await r.json();
+    var tbody=document.getElementById('tx-table');
+    tbody.innerHTML=d.transactions.map(function(t,idx){
+      var changeStr=t.change>0?'<span class="tx-plus">+'+t.change+'</span>':'<span class="tx-minus">'+t.change+'</span>';
+      return '<tr>'+
+        '<td>'+((txPage-1)*50+idx+1)+'</td>'+
+        '<td>'+(esc(t.username)||'—')+'</td>'+
+        '<td>'+esc(t.email||'—')+'</td>'+
+        '<td>'+changeStr+'</td>'+
+        '<td>'+t.balance+'</td>'+
+        '<td>'+esc(t.source)+'</td>'+
+        '<td>'+fmtTime(t.created_at)+'</td>'+
+        '</tr>';
+    }).join('');
+    var pg=document.getElementById('tx-page');
+    var totalPages=Math.ceil(d.total/50);
+    var html='';
+    for(var p=1;p<=totalPages;p++){
+      html+='<button class="btn sm" style="margin:2px;'+(p===txPage?'background:rgba(212,168,67,0.3);':'')+'" onclick="loadTransactions('+p+')">'+p+'</button>';
+    }
+    pg.innerHTML=html;
+  }catch(e){document.getElementById('tx-table').innerHTML='<tr><td colspan="7" style="color:#f87171">加载失败：'+e.message+'</td></tr>';}
+}
+
+function askDelete(id,email){
+  deleteTargetId=id;
+  document.getElementById('del-msg').innerHTML='删除 <b>'+email+'</b>（ID: '+id+'）？<br>该用户的占卜记录和额度流水也会被删除。不可撤销。';
+  document.getElementById('del-overlay').style.display='flex';
+}
+function closeDeleteDialog(){deleteTargetId=null;document.getElementById('del-overlay').style.display='none';}
+async function confirmDelete(){
+  if(!deleteTargetId)return;
+  try{
+    var r=await fetch('/api/admin/users/'+deleteTargetId,{method:'DELETE'});
+    var data=await r.json();
+    if(!r.ok)throw new Error(data.error||'HTTP '+r.status);
+    closeDeleteDialog();
+    if(selectedUserId===deleteTargetId)closeDetail();
+    loadData(document.getElementById('search').value.trim());
+  }catch(e){alert('删除失败：'+e.message);}
+}
+
+function esc(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function fmtTime(t){if(!t)return'—';var d=new Date(t);d.setHours(d.getHours()+8);return d.toLocaleString('zh-CN',{hour12:false});}
+
+loadData('');
+</script>
+</body>
+</html>

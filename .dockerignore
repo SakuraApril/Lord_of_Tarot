@@ -1,0 +1,26 @@
+.git
+.gitignore
+.mimocode
+.env
+.env.example
+OneDrive - Personal/
+admin/*
+node_modules
+public/admin/
+scripts/
+cpp/
+tmp*
+*.bak
+*.log
+.gitlab-ci.yml
+test-*.html
+camera-test.html
+test-gesture.html
+test-server.js
+gesture-doc.md
+gesture-module-doc.md
+api-doc.md
+README.md
+fly.toml
+Dockerfile
+.dockerignore
