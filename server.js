@@ -6,8 +6,8 @@ const compression = require('compression');
 const fs = require('fs');
 const path = require('path');
 const OpenAI = require('openai');
-const rateLimit = require('express-rate-limit');
-const { ipKeyGenerator } = rateLimit;
+const { createLimiter } = require('./middleware/redisRateLimit');
+const redis = require('./lib/redis');
 const { initDB, pool } = require('./db/init');
 const authGuard = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
@@ -28,9 +28,12 @@ const PORT = process.env.PORT || 3000;
 const jwt = require('jsonwebtoken');
 
 // 通用 API：防爬虫，已登录用户不受限
-app.use('/api/', rateLimit({
+app.use('/api/', createLimiter({
+  name: 'api',
+  prefix: 'rl:api',
   windowMs: 15 * 60 * 1000,
   max: 200,
+  keyGenerator: (req) => req.ip || 'unknown',
   skip: (req) => {
     const header = req.headers.authorization;
     if (header && header.startsWith('Bearer ')) {
@@ -44,14 +47,18 @@ app.use('/api/', rateLimit({
 }));
 
 // 认证接口：防暴力破解，校园网放宽
-app.use('/api/auth/', rateLimit({
+app.use('/api/auth/', createLimiter({
+  name: 'auth',
+  prefix: 'rl:auth',
   windowMs: 15 * 60 * 1000,
   max: 500,
-  keyGenerator: (req) => ipKeyGenerator(req)
+  keyGenerator: (req) => req.ip || 'unknown',
 }));
 
 // 兑换接口：防刷，按用户 ID
-app.use('/api/user/redeem', rateLimit({
+app.use('/api/user/redeem', createLimiter({
+  name: 'redeem',
+  prefix: 'rl:redeem',
   windowMs: 60 * 1000,
   max: 3,
   keyGenerator: (req) => {
@@ -59,15 +66,17 @@ app.use('/api/user/redeem', rateLimit({
     if (header && header.startsWith('Bearer ')) {
       try {
         const decoded = jwt.verify(header.slice(7), process.env.JWT_SECRET);
-        return decoded.userId || decoded.uuid || ipKeyGenerator(req);
+        return decoded.userId || decoded.uuid || (req.ip || 'unknown');
       } catch {}
     }
-    return ipKeyGenerator(req);
+    return (req.ip || 'unknown');
   }
 }));
 
 // 占卜接口：防滥用，按用户 ID
-app.use('/api/reading', rateLimit({
+app.use('/api/reading', createLimiter({
+  name: 'reading',
+  prefix: 'rl:reading',
   windowMs: 5 * 60 * 1000,
   max: 15,
   keyGenerator: (req) => {
@@ -75,10 +84,10 @@ app.use('/api/reading', rateLimit({
     if (header && header.startsWith('Bearer ')) {
       try {
         const decoded = jwt.verify(header.slice(7), process.env.JWT_SECRET);
-        return decoded.userId || decoded.uuid || ipKeyGenerator(req);
+        return decoded.userId || decoded.uuid || (req.ip || 'unknown');
       } catch {}
     }
-    return ipKeyGenerator(req);
+    return (req.ip || 'unknown');
   }
 }));
 
@@ -300,8 +309,17 @@ app.get('/api/spreads', (req, res) => {
 });
 
 // 健康检查
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
+app.get('/api/health', async (req, res) => {
+  const [dbOk, redisState] = await Promise.all([
+    pool.query('SELECT 1 AS ok').then(() => true).catch(() => false),
+    redis.health(),
+  ]);
+  res.status(dbOk ? 200 : 503).json({
+    status: dbOk ? 'ok' : 'degraded',
+    mysql: { ok: dbOk },
+    redis: redisState,
+    uptimeSec: Math.round(process.uptime()),
+  });
 });
 
 // ─────────── 管理员接口（仅本地使用） ───────────

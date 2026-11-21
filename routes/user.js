@@ -1,5 +1,10 @@
 const express = require('express');
 const { pool } = require('../db/init');
+const { cacheAside, delCache, isReady } = require('../lib/redis');
+
+const READING_CACHE_TTL = 60;      // 详情缓存 60 秒
+const READING_CACHE_JITTER = 30;   // 随机抖动，防同时过期
+const readingCacheKey = (id, userId) => `reading:${userId}:${id}`;
 const authGuard = require('../middleware/auth');
 
 const router = express.Router();
@@ -136,17 +141,28 @@ router.get('/history', authGuard(true), async (req, res) => {
   }
 });
 
-// --- 历史记录详情 ---
+// --- 历史记录详情（缓存 60s，带空值缓存与互斥重建）---
 router.get('/history/:id', authGuard(true), async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM readings WHERE id = $1 AND user_id = $2',
-      [req.params.id, req.user.id]
-    );
-    if (result.rowCount === 0) {
+    const key = readingCacheKey(req.params.id, req.user.id);
+    const { value, cached, degraded } = await cacheAside({
+      key,
+      ttlSec: READING_CACHE_TTL,
+      jitterSec: READING_CACHE_JITTER,
+      loader: async () => {
+        const result = await pool.query(
+          'SELECT * FROM readings WHERE id = $1 AND user_id = $2',
+          [req.params.id, req.user.id]
+        );
+        return result.rowCount === 0 ? null : result.rows[0];
+      },
+    });
+
+    res.setHeader('X-Cache', degraded ? 'bypass' : cached ? 'HIT' : 'MISS');
+    if (!value) {
       return res.status(404).json({ error: '记录不存在' });
     }
-    res.json({ reading: result.rows[0] });
+    res.json({ reading: value });
   } catch (err) {
     console.error('获取历史详情失败:', err);
     res.status(500).json({ error: '获取失败，请稍后重试' });
@@ -164,6 +180,9 @@ router.delete('/history/:id', authGuard(true), async (req, res) => {
       return res.status(404).json({ error: '记录不存在' });
     }
     await pool.query('DELETE FROM readings WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    if (isReady()) {
+      await delCache(readingCacheKey(req.params.id, req.user.id)).catch(() => {});
+    }
     res.json({ message: '删除成功' });
   } catch (err) {
     console.error('删除历史记录失败:', err);
