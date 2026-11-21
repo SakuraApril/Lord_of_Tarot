@@ -32,7 +32,7 @@ app.use('/api/', createLimiter({
   name: 'api',
   prefix: 'rl:api',
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: Number(process.env.RL_API_MAX || 200),
   keyGenerator: (req) => req.ip || 'unknown',
   skip: (req) => {
     const header = req.headers.authorization;
@@ -51,7 +51,7 @@ app.use('/api/auth/', createLimiter({
   name: 'auth',
   prefix: 'rl:auth',
   windowMs: 15 * 60 * 1000,
-  max: 500,
+  max: Number(process.env.RL_AUTH_MAX || 500),
   keyGenerator: (req) => req.ip || 'unknown',
 }));
 
@@ -60,7 +60,7 @@ app.use('/api/user/redeem', createLimiter({
   name: 'redeem',
   prefix: 'rl:redeem',
   windowMs: 60 * 1000,
-  max: 3,
+  max: Number(process.env.RL_REDEEM_MAX || 3),
   keyGenerator: (req) => {
     const header = req.headers.authorization;
     if (header && header.startsWith('Bearer ')) {
@@ -78,7 +78,7 @@ app.use('/api/reading', createLimiter({
   name: 'reading',
   prefix: 'rl:reading',
   windowMs: 5 * 60 * 1000,
-  max: 15,
+  max: Number(process.env.RL_READING_MAX || 15),
   // 只限制「起卦」（POST）；轮询任务状态是 GET，不该占用起卦额度
   skip: (req) => req.method === 'GET',
   keyGenerator: (req) => {
