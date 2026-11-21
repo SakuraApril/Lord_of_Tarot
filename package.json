@@ -10,7 +10,10 @@
                     "verify:mysql":  "node scripts/verify_mysql.js",
                     "gen-coupons":  "node scripts/gen-coupons.js",
                     "verify:redis":  "node scripts/verify_redis.js",
-                    "verify:degrade":  "node scripts/verify_degrade.js"
+                    "verify:degrade":  "node scripts/verify_degrade.js",
+                    "worker":  "node workers/reading_worker.js",
+                    "verify:async":  "node scripts/verify_async.js",
+                    "verify:refund":  "node scripts/verify_refund.js"
                 },
     "dependencies":  {
                          "amqplib":  "^2.4.0",

@@ -79,6 +79,8 @@ app.use('/api/reading', createLimiter({
   prefix: 'rl:reading',
   windowMs: 5 * 60 * 1000,
   max: 15,
+  // 只限制「起卦」（POST）；轮询任务状态是 GET，不该占用起卦额度
+  skip: (req) => req.method === 'GET',
   keyGenerator: (req) => {
     const header = req.headers.authorization;
     if (header && header.startsWith('Bearer ')) {
@@ -101,6 +103,7 @@ app.use(express.static('public'));
 // --- 挂载路由 ---
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api', require('./routes/reading_async'));   // POST /api/reading/async、GET /api/reading/task/:id
 
 // --- OpenAI 客户端 ---
 const openai = new OpenAI({
@@ -110,37 +113,8 @@ const openai = new OpenAI({
 
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
-// 读取提示词模板
-const promptTemplate = fs.readFileSync(
-  path.join(__dirname, 'tarot_prompt.md'),
-  'utf-8'
-);
-
-// 构建完整提示词
-function buildPrompt(question, cards) {
-  const cardsInfo = cards.map(c => {
-    const name = c.nameZh || c.name;
-    const dir = c.reversed ? '（逆位）' : '（正位）';
-    return name + dir;
-  }).join('、');
-
-  const cardCount = cards.length;
-  let positionHint = '';
-  if (cardCount === 1) {
-    positionHint = `牌阵：[单牌启示]；牌面：[${cardsInfo}]`;
-  } else if (cardCount === 3) {
-    positionHint = `牌阵：[三张牌时间流（过去-现在-未来）]；牌面：[${cardsInfo}]`;
-  } else if (cardCount === 10) {
-    positionHint = `牌阵：[凯尔特十字大牌阵]；牌面：[${cardsInfo}]`;
-  }
-
-  const userMessage = `问卜者的问题：${question}\n\n${positionHint}`;
-
-  return [
-    { role: 'system', content: promptTemplate },
-    { role: 'user', content: userMessage }
-  ];
-}
+// 提示词构建抽到 lib/prompt.js，与异步 worker 共用同一份
+const { buildPrompt, spreadTypeOf } = require('./lib/prompt');
 
 // --- AI 解读接口 ---
 app.post('/api/reading', authGuard(true), async (req, res) => {
@@ -211,7 +185,7 @@ app.post('/api/reading', authGuard(true), async (req, res) => {
     }
 
     // 5. 流正常结束 → 保存历史 + 记录流水
-    const spreadType = cards.length === 1 ? 'single' : cards.length === 3 ? 'three' : 'celtic';
+    const spreadType = spreadTypeOf(cards);
     const cardsJson = JSON.stringify(cards);
 
     const readingResult = await pool.query(
@@ -314,10 +288,17 @@ app.get('/api/health', async (req, res) => {
     pool.query('SELECT 1 AS ok').then(() => true).catch(() => false),
     redis.health(),
   ]);
+  let mqState = { ok: false, error: 'not checked' };
+  try {
+    mqState = await require('./lib/mq').health();
+  } catch (e) {
+    mqState = { ok: false, error: e.message };
+  }
   res.status(dbOk ? 200 : 503).json({
     status: dbOk ? 'ok' : 'degraded',
     mysql: { ok: dbOk },
     redis: redisState,
+    mq: mqState,
     uptimeSec: Math.round(process.uptime()),
   });
 });
