@@ -16,6 +16,15 @@ const userRoutes = require('./routes/user');
 
 const app = express();
 app.set('trust proxy', 1);
+
+// 请求级上下文：每个请求一个 traceId，日志里用它串起同一次请求
+// （Node 没有 ThreadLocal，等价物是 AsyncLocalStorage）
+const ctx = require('./lib/context');
+app.use((req, res, next) => {
+  const traceId = req.get('X-Trace-Id') || Math.random().toString(36).slice(2, 10);
+  res.setHeader('X-Trace-Id', traceId);
+  ctx.run({ traceId, startedAt: Date.now() }, next);
+});
 app.use(compression());
 app.use(helmet({
   contentSecurityPolicy: false,

@@ -1,5 +1,6 @@
 const express = require('express');
 const { pool } = require('../db/init');
+const session = require('../lib/session');
 const { cacheAside, delCache, isReady } = require('../lib/redis');
 
 const READING_CACHE_TTL = 60;      // 详情缓存 60 秒
@@ -96,6 +97,7 @@ router.post('/redeem', authGuard(true), async (req, res) => {
     );
 
     req.user.credits = newCredits;
+    await session.invalidateUser(req.user.uuid);   // 额度变了，缓存快照要失效
 
     res.json({
       message: '兑换成功',

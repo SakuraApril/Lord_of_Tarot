@@ -15,7 +15,8 @@
                     "verify:async":  "node scripts/verify_async.js",
                     "verify:refund":  "node scripts/verify_refund.js",
                     "loadtest":  "node scripts/loadtest.js",
-                    "verify:lua":  "node scripts/verify_lua.js"
+                    "verify:lua":  "node scripts/verify_lua.js",
+                    "verify:session":  "node scripts/verify_session.js"
                 },
     "dependencies":  {
                          "amqplib":  "^2.4.0",

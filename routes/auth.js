@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { pool } = require('../db/init');
 const { sendVerifyEmail, sendResetEmail } = require('../utils/email');
 const authGuard = require('../middleware/auth');
+const session = require('../lib/session');
 
 const router = express.Router();
 
@@ -244,7 +245,7 @@ router.post('/login', async (req, res) => {
 
     // 签发 JWT（存 uuid）
     const token = jwt.sign(
-      { uuid: user.uuid, email: user.email },
+      { uuid: user.uuid, email: user.email, jti: crypto.randomUUID() },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -473,6 +474,24 @@ router.post('/reset-password', async (req, res) => {
   } catch (err) {
     console.error('重置密码失败:', err);
     res.status(500).json({ error: '重置失败，请稍后重试' });
+  }
+});
+
+
+// --- 退出登录：把当前 token 的 jti 写入黑名单，并清掉用户快照 ---
+router.post('/logout', async (req, res) => {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) {
+    return res.json({ ok: true, note: '未携带 token，无需注销' });
+  }
+  try {
+    const decoded = jwt.verify(header.slice(7), process.env.JWT_SECRET);
+    const ttl = Math.max(1, (decoded.exp || 0) - Math.floor(Date.now() / 1000));
+    if (decoded.jti) await session.revokeToken(decoded.jti, ttl);
+    if (decoded.uuid) await session.invalidateUser(decoded.uuid);
+    res.json({ ok: true, revoked: !!decoded.jti, ttl });
+  } catch (e) {
+    res.status(401).json({ error: '令牌无效' });
   }
 });
 
