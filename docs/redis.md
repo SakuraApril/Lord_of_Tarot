@@ -28,16 +28,43 @@
 | `/api/user/redeem` | 1 分钟 | 3 | 兑换码是枚举目标，必须严 |
 | `/api/reading` | 5 分钟 | 15 | 防刷额度与模型成本 |
 
-### 2.2 实现
+### 2.2 实现：Lua 脚本（不是 INCR + EXPIRE 两条命令）
 
-```js
-// 固定窗口：一次 INCR，第一次计数时设过期
-const count = await client.incr(key);
-if (count === 1) await client.expire(key, windowSec);
+```lua
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[1]) end
+local ttl = redis.call('PTTL', KEYS[1])
+if ttl < 0 then redis.call('PEXPIRE', KEYS[1], ARGV[1]); ttl = tonumber(ARGV[1]) end
+return { count, ttl }
 ```
 
-为什么是「INCR 一次」而不是「GET 再 SET」：
-`GET` + `SET` 是两条命令，中间有窗口，并发下会丢计数；`INCR` 单命令原子。
+**为什么必须用 Lua**：`INCR` 和 `EXPIRE` 是两条命令，中间如果进程崩溃，
+会留下一个「有计数、没有 TTL」的 key —— 这个 IP 会被**永久封禁**。
+Lua 在 Redis 内部原子执行，不存在中间态。
+
+脚本里还加了自愈：如果发现 key 没有 TTL（历史遗留的脏 key），顺手补上，
+避免已经存在坏 key 永远卡住用户。
+
+用 ioredis 的 `defineCommand` 注册，客户端会自动走 `EVALSHA` 并处理 `NOSCRIPT` 重载：
+
+```js
+client.defineCommand('incrWindowAtomic', { numberOfKeys: 1, lua: WINDOW_SCRIPT });
+const [count, ttlMs] = await client.incrWindowAtomic(key, windowMs);
+```
+
+顺带的好处：计数和剩余 TTL 一次往返拿到，而两条命令要两次往返。
+
+#### 验证（`npm run verify:lua`）
+
+```
+① 并发 200 次：
+   最终计数 200（说明没有丢计数）
+   最小 TTL 60s（说明每次都有过期时间）
+   总耗时 17 ms（200 次 EVALSHA 往返）
+② 脏 key 自愈：
+   调用前 TTL=-1（永不过期，就是那个 bug）
+   调用后 TTL=60
+```
 
 ### 2.3 为什么不用滑动窗口 / 令牌桶
 

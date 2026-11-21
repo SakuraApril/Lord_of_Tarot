@@ -14,7 +14,8 @@
                     "worker":  "node workers/reading_worker.js",
                     "verify:async":  "node scripts/verify_async.js",
                     "verify:refund":  "node scripts/verify_refund.js",
-                    "loadtest":  "node scripts/loadtest.js"
+                    "loadtest":  "node scripts/loadtest.js",
+                    "verify:lua":  "node scripts/verify_lua.js"
                 },
     "dependencies":  {
                          "amqplib":  "^2.4.0",
