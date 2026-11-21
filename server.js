@@ -144,15 +144,30 @@ app.post('/api/reading', authGuard(true), async (req, res) => {
     }
 
     // 1. 先扣额度（原子操作，防竞态）
-    const deductResult = await pool.query(
-      `UPDATE users SET credits = credits - 1, updated_at = NOW()
-       WHERE id = $1 AND credits > 0
-       RETURNING credits`,
-      [req.user.id]
-    );
-
-    if (deductResult.rowCount === 0) {
-      return res.status(403).json({ error: '额度不足', code: 'NO_CREDITS' });
+    //    MySQL 没有 RETURNING，改成「同一事务里 UPDATE + SELECT」：
+    //    UPDATE 已经对该行加了排他锁，事务提交前别的请求改不了，
+    //    所以紧接着读到的余额一定是本次扣减后的值。
+    let newBalance;
+    const conn = await pool.connect();
+    try {
+      await conn.begin();
+      const deductResult = await conn.query(
+        `UPDATE users SET credits = credits - 1, updated_at = NOW()
+         WHERE id = $1 AND credits > 0`,
+        [req.user.id]
+      );
+      if (deductResult.rowCount === 0) {
+        await conn.rollback();
+        return res.status(403).json({ error: '额度不足', code: 'NO_CREDITS' });
+      }
+      const balanceRow = await conn.query('SELECT credits FROM users WHERE id = $1', [req.user.id]);
+      newBalance = balanceRow.rows[0].credits;
+      await conn.commit();
+    } catch (deductErr) {
+      await conn.rollback().catch(() => {});
+      throw deductErr;
+    } finally {
+      conn.release();
     }
     creditDeducted = true;
 
@@ -192,16 +207,14 @@ app.post('/api/reading', authGuard(true), async (req, res) => {
 
     const readingResult = await pool.query(
       `INSERT INTO readings (user_id, question, spread_type, cards_json, ai_response)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id`,
+       VALUES ($1, $2, $3, $4, $5)`,
       [req.user.id, question, spreadType, cardsJson, fullText]
     );
-    const readingId = readingResult.rows[0].id;
+    const readingId = readingResult.insertId;
 
-    // 记录额度流水
-    const newBalance = deductResult.rows[0].credits;
+    // 记录额度流水（余额在扣减事务里已取到）
     await pool.query(
-      'INSERT INTO credit_transactions (user_id, change, balance, source, ref_id) VALUES ($1, -1, $2, $3, $4)',
+      'INSERT INTO credit_transactions (user_id, delta, balance, source, ref_id) VALUES ($1, -1, $2, $3, $4)',
       [req.user.id, newBalance, 'reading', readingId]
     );
 
@@ -328,10 +341,11 @@ app.put('/api/admin/users/:id/credits', async (req, res) => {
     const id = parseInt(req.params.id);
     const { credits } = req.body;
     if (!id || credits == null) return res.status(400).json({ error: '无效参数' });
-    const result = await pool.query(
-      'UPDATE users SET credits = $1, updated_at = NOW() WHERE id = $2 RETURNING id, email, credits',
+    await pool.query(
+      'UPDATE users SET credits = $1, updated_at = NOW() WHERE id = $2',
       [parseInt(credits), id]
     );
+    const result = await pool.query('SELECT id, email, credits FROM users WHERE id = $1', [id]);
     if (result.rows.length === 0) return res.status(404).json({ error: '用户不存在' });
     res.json({ ok: true, user: result.rows[0] });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -345,8 +359,9 @@ app.delete('/api/admin/users/:id', async (req, res) => {
     await pool.query('DELETE FROM readings WHERE user_id = $1', [id]);
     await pool.query('DELETE FROM credit_transactions WHERE user_id = $1', [id]);
     await pool.query('DELETE FROM login_logs WHERE user_id = $1', [id]);
-    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id, email', [id]);
+    const result = await pool.query('SELECT id, email FROM users WHERE id = $1', [id]);
     if (result.rows.length === 0) return res.status(404).json({ error: '用户不存在' });
+    await pool.query('DELETE FROM users WHERE id = $1', [id]);
     res.json({ ok: true, deleted: result.rows[0] });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -383,7 +398,7 @@ app.get('/api/admin/transactions', async (req, res) => {
     const limit = 50;
     const offset = (page - 1) * limit;
     const result = await pool.query(
-      `SELECT ct.id, ct.user_id, ct.change, ct.balance, ct.source, ct.ref_id, ct.created_at,
+      `SELECT ct.id, ct.user_id, ct.delta AS \`change\`, ct.balance, ct.source, ct.ref_id, ct.created_at,
          u.email, u.username
        FROM credit_transactions ct
        LEFT JOIN users u ON u.id = ct.user_id

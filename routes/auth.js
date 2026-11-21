@@ -144,17 +144,20 @@ router.post('/register', async (req, res) => {
     const uuid = crypto.randomUUID();
     const hash = await bcrypt.hash(password, 10);
 
-    const result = await pool.query(
+    await pool.query(
       `INSERT INTO users (uuid, email, password_hash, username)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, uuid, email, username, credits`,
+       VALUES ($1, $2, $3, $4)`,
       [uuid, email, hash, username]
+    );
+    const result = await pool.query(
+      'SELECT id, uuid, email, username, credits FROM users WHERE email = $1',
+      [email]
     );
     const user = result.rows[0];
 
     // 插入额度流水
     await pool.query(
-      'INSERT INTO credit_transactions (user_id, change, balance, source) VALUES ($1, 3, 3, $2)',
+      'INSERT INTO credit_transactions (user_id, delta, balance, source) VALUES ($1, 3, 3, $2)',
       [user.id, 'register']
     );
 

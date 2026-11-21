@@ -12,7 +12,7 @@ router.get('/credit-transactions', authGuard(true), async (req, res) => {
     const offset = (page - 1) * limit;
 
     const data = await pool.query(
-      `SELECT id, change, balance, source, ref_id, created_at
+      `SELECT id, delta AS \`change\`, balance, source, ref_id, created_at
        FROM credit_transactions
        WHERE user_id = $1
        ORDER BY created_at DESC
@@ -53,13 +53,15 @@ router.post('/redeem', authGuard(true), async (req, res) => {
     const formattedCode = code.trim().toUpperCase();
 
     // 原子查询并更新
-    const result = await pool.query(
+    const updated = await pool.query(
       `UPDATE coupons
        SET used = 1, used_by = $1, used_at = NOW()
-       WHERE code = $2 AND used = 0 AND (expires_at IS NULL OR expires_at > NOW())
-       RETURNING credits, id`,
+       WHERE code = $2 AND used = 0 AND (expires_at IS NULL OR expires_at > NOW())`,
       [req.user.id, formattedCode]
     );
+    const result = updated.rowCount === 0
+      ? { rowCount: 0, rows: [] }
+      : await pool.query('SELECT credits, id FROM coupons WHERE code = $1', [formattedCode]);
 
     if (result.rowCount === 0) {
       const check = await pool.query('SELECT used, expires_at FROM coupons WHERE code = $1', [formattedCode]);
@@ -84,7 +86,7 @@ router.post('/redeem', authGuard(true), async (req, res) => {
     );
 
     await pool.query(
-      'INSERT INTO credit_transactions (user_id, change, balance, source, ref_id) VALUES ($1, $2, $3, $4, $5)',
+      'INSERT INTO credit_transactions (user_id, delta, balance, source, ref_id) VALUES ($1, $2, $3, $4, $5)',
       [req.user.id, coupon.credits, newCredits, 'redeem', coupon.id]
     );
 
@@ -154,13 +156,14 @@ router.get('/history/:id', authGuard(true), async (req, res) => {
 // --- 删除历史记录 ---
 router.delete('/history/:id', authGuard(true), async (req, res) => {
   try {
-    const result = await pool.query(
-      'DELETE FROM readings WHERE id = $1 AND user_id = $2 RETURNING id',
+    const existing = await pool.query(
+      'SELECT id FROM readings WHERE id = $1 AND user_id = $2',
       [req.params.id, req.user.id]
     );
-    if (result.rowCount === 0) {
+    if (existing.rowCount === 0) {
       return res.status(404).json({ error: '记录不存在' });
     }
+    await pool.query('DELETE FROM readings WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
     res.json({ message: '删除成功' });
   } catch (err) {
     console.error('删除历史记录失败:', err);
