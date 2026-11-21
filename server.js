@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const OpenAI = require('openai');
 const { createLimiter } = require('./middleware/redisRateLimit');
+const { createLocalLimiter } = require('./middleware/localRateLimit');
 const redis = require('./lib/redis');
 const { initDB, pool } = require('./db/init');
 const authGuard = require('./middleware/auth');
@@ -28,6 +29,13 @@ const PORT = process.env.PORT || 3000;
 const jwt = require('jsonwebtoken');
 
 // 通用 API：防爬虫，已登录用户不受限
+// 只读/静态接口走进程内限流：省掉每请求一次 Redis 往返
+// （多实例时按实例数放大，作为兜底可接受；有成本的接口仍走 Redis）
+app.use('/api/', createLocalLimiter({
+  name: 'api-local',
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.RL_API_MAX || 200),
+}));
 app.use('/api/', createLimiter({
   name: 'api',
   prefix: 'rl:api',
@@ -35,6 +43,9 @@ app.use('/api/', createLimiter({
   max: Number(process.env.RL_API_MAX || 200),
   keyGenerator: (req) => req.ip || 'unknown',
   skip: (req) => {
+    // 静态只读接口：本地限流已经兜底，不再消耗一次 Redis 往返
+    if (req.method === 'GET' && /^\/api\/(cards|spreads)/.test(req.path)) return true;
+
     const header = req.headers.authorization;
     if (header && header.startsWith('Bearer ')) {
       try {
@@ -257,16 +268,33 @@ function buildFullDeck() {
 
 const FULL_DECK = buildFullDeck();
 
+// 牌面数据在启动时序列化一次：这类接口的瓶颈不是数据库，而是每次请求重复 JSON.stringify
+const CARDS_BODY = JSON.stringify({ major: majorArcana, minor: minorArcana, fullDeck: FULL_DECK });
+const CARDS_MAJOR_BODY = JSON.stringify(majorArcana);
+const CARDS_MINOR_BODY = JSON.stringify(minorArcana);
+const CARDS_ETAG = '"' + Buffer.byteLength(CARDS_BODY) + '-' + FULL_DECK.length + '"';
+
+function sendPreSerialized(req, res, body, etag) {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.setHeader('ETag', etag);
+  if (req.headers['if-none-match'] === etag) {
+    res.status(304).end();
+    return;
+  }
+  res.send(body);
+}
+
 app.get('/api/cards', (req, res) => {
-  res.json({ major: majorArcana, minor: minorArcana, fullDeck: FULL_DECK });
+  sendPreSerialized(req, res, CARDS_BODY, CARDS_ETAG);
 });
 
 app.get('/api/cards/major', (req, res) => {
-  res.json(majorArcana);
+  sendPreSerialized(req, res, CARDS_MAJOR_BODY, CARDS_ETAG + '-major');
 });
 
 app.get('/api/cards/minor', (req, res) => {
-  res.json(minorArcana);
+  sendPreSerialized(req, res, CARDS_MINOR_BODY, CARDS_ETAG + '-minor');
 });
 
 app.get('/api/cards/:id', (req, res) => {

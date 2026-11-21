@@ -38,15 +38,14 @@ async function submitTask(userId, question, cards, requestId) {
     const bal = await conn.query('SELECT credits FROM users WHERE id = $1', [userId]);
     newBalance = bal.rows[0].credits;
 
-    // 2. 建任务
+    // 2. 建任务（用 insertId，省掉一次 SELECT）
     taskId = crypto.randomUUID();
-    await conn.query(
+    const ins = await conn.query(
       `INSERT INTO reading_tasks (task_id, user_id, question, cards_json, status)
        VALUES ($1, $2, $3, $4, 'queued')`,
       [taskId, userId, question, JSON.stringify(cards)]
     );
-    const t = await conn.query('SELECT id FROM reading_tasks WHERE task_id = $1', [taskId]);
-    const taskRowId = t.rows[0].id;
+    const taskRowId = ins.insertId;
 
     // 3. 记额度流水（ref_id 指向任务，便于对账）
     await conn.query(
