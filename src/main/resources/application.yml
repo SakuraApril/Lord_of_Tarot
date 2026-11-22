@@ -1,0 +1,50 @@
+server:
+  port: ${PORT:3000}
+  compression:
+    enabled: true
+
+spring:
+  application:
+    name: tarot-backend
+
+  datasource:
+    url: ${MYSQL_URL:jdbc:mysql://127.0.0.1:3306/tarot?useSSL=false&serverTimezone=UTC&characterEncoding=utf8}
+    username: ${MYSQL_USER:tarot}
+    password: ${MYSQL_PASSWORD:tarot123}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: ${MYSQL_POOL_SIZE:10}
+      connection-timeout: 5000
+      pool-name: tarot-pool
+
+  data:
+    redis:
+      url: ${REDIS_URL:redis://127.0.0.1:6379}
+      timeout: 2s
+
+  rabbitmq:
+    addresses: ${RABBITMQ_URL:amqp://guest:guest@127.0.0.1:5672}
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: 1
+        concurrency: 1
+        max-concurrency: 2
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev_secret_change_me_at_least_32_chars_long}
+    ttl-days: 7
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+    model: ${OPENAI_MODEL:gpt-4o-mini}
+  static-dir: ${STATIC_DIR:public}
+  cache:
+    reading-ttl-seconds: 60
+    reading-jitter-seconds: 30
+
+logging:
+  level:
+    root: info
+    com.tarot: info

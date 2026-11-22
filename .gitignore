@@ -47,3 +47,13 @@ desktop.ini
 *.backup
 backup*/
 OneDrive - Personal/
+
+# Java / Maven
+target/
+*.class
+.mvn/
+!.mvn/wrapper/maven-wrapper.properties
+
+# 本地验收输出
+_java.out
+_java.err
