@@ -32,6 +32,12 @@ spring:
         max-concurrency: 2
 
 app:
+  # 限流上限：压测时用环境变量调大，线上用默认值
+  rate-limit:
+    api-max: ${RL_API_MAX:200}
+    auth-max: ${RL_AUTH_MAX:500}
+    redeem-max: ${RL_REDEEM_MAX:3}
+    reading-max: ${RL_READING_MAX:15}
   jwt:
     secret: ${JWT_SECRET:dev_secret_change_me_at_least_32_chars_long}
     ttl-days: 7

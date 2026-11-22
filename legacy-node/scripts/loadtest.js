@@ -50,7 +50,7 @@ function percentile(sorted, p) {
     );
     const u = await pool.query('SELECT id, uuid FROM users WHERE email = $1', [EMAIL]);
     userId = u.rows[0].id;
-    token = jwt.sign({ userId: u.rows[0].id, uuid: u.rows[0].uuid }, process.env.JWT_SECRET, { expiresIn: '2h' });
+    token = jwt.sign({ userId: u.rows[0].id, uuid: u.rows[0].uuid, email: u.rows[0].email }, process.env.JWT_SECRET, { expiresIn: '2h', subject: u.rows[0].uuid });
 
     // 造一条历史记录，供 /history/{id} 这类路径使用
     const ins = await pool.query(
@@ -68,7 +68,7 @@ function percentile(sorted, p) {
         [email, `loadtest${i}`, 'x']
       );
       const row = await pool.query('SELECT id, uuid FROM users WHERE email = $1', [email]);
-      users.push({ id: row.rows[0].id, token: jwt.sign({ userId: row.rows[0].id, uuid: row.rows[0].uuid }, process.env.JWT_SECRET, { expiresIn: '2h' }) });
+      users.push({ id: row.rows[0].id, token: jwt.sign({ userId: row.rows[0].id, uuid: row.rows[0].uuid }, process.env.JWT_SECRET, { expiresIn: '2h', subject: row.rows[0].uuid }) });
     }
   }
 
